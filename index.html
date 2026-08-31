@@ -291,6 +291,13 @@ document.addEventListener('DOMContentLoaded', async function() {
     // The manifest bytes are ours; SRI protects against CDN compromise, not this.
     template = template.replace(/\s+integrity="[^"]*"/gi, '').replace(/\s+crossorigin="[^"]*"/gi, '');
 
+    // The source page is a self-contained legacy bundle. Load the live
+    // membership gate after its views but before it mounts the application.
+    template = template.replace(
+      '<script type="text/babel" src="30919117-94fa-427f-83d9-736a50d31bca"></script>',
+      '<script type="text/babel" src="membership.js"></script><script type="text/babel" src="30919117-94fa-427f-83d9-736a50d31bca"></script>'
+    );
+
     const resourceScript = '<script>window.__resources = ' +
       JSON.stringify(resourceMap).replace(/<\//g, '<\\/') +
       ';</' + 'script>';
