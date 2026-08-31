@@ -288,6 +288,14 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (uuid === 'd3f69ec9-36ea-4eaa-9a07-957db160bea8') {
           finalBytes = new TextEncoder().encode(membershipSource);
         }
+        if (uuid === '16929e5d-81d1-4d8c-8700-898751e4c851') {
+          let source = new TextDecoder().decode(finalBytes);
+          source = source.replace(
+            'function resHref(r) {\n  const query =',
+            'function resHref(r) {\n  if (r.url) return r.url;\n  const query ='
+          );
+          finalBytes = new TextEncoder().encode(source);
+        }
 
         if (pageSet.has(uuid)) {
           pageTexts[uuid] = new TextDecoder().decode(finalBytes);

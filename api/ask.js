@@ -4,6 +4,7 @@
 
 import { readAccess } from "../lib/access.js";
 import { scholarlyReadingSuggestions } from "../lib/trusted-sources.js";
+import { findCampusCounselingOffice } from "../lib/campus-search.js";
 
 const ALLOWED_MODEL = "claude-sonnet-4-5";
 const PLAN_INSTRUCTIONS = {
@@ -40,6 +41,11 @@ function safeJsonResponse(data) {
   });
 }
 
+function institutionFrom(question) {
+  const match = String(question || "").match(/\b(?:[A-Z][A-Za-z&.'-]*\s+){0,4}(?:University|College|Institute)\b/);
+  return match ? match[0] : "";
+}
+
 export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
@@ -66,10 +72,13 @@ export default async function handler(req, res) {
     return res.status(200).json({ text: safeJsonResponse({ answer: "I cannot answer sexual questions. You can ask me for other guidance or academic help." }) });
   }
   if (MENTAL_HEALTH_RE.test(latestQuestion)) {
+    const institution = institutionFrom(latestQuestion);
+    const resources = await findCampusCounselingOffice(institution);
     return res.status(200).json({ text: safeJsonResponse({
       care: true,
-      answer: "I cannot provide psychological counseling or a diagnosis. Please contact your campus personal counseling center. If you share your institution name, I can help you look for its official counseling-office page. If you may be in immediate danger, contact local emergency services; in the U.S., call or text 988.",
+      answer: institution && resources.length ? "I cannot provide psychological counseling or a diagnosis. I found official counseling-office results for " + institution + " below. If you may be in immediate danger, contact local emergency services; in the U.S., call or text 988." : "I cannot provide psychological counseling or a diagnosis. Please contact your campus personal counseling center. Share your institution name if you want me to look for its official .edu counseling-office page. If you may be in immediate danger, contact local emergency services; in the U.S., call or text 988.",
       suggestions: ["Contact your campus personal counseling center today.", "Reach out to a trusted person who can be with you or help you make the call."],
+      resources,
       sources: [{ name: "Campus personal counseling center", type: "edu", why: "Official student support service" }, { name: "988 Suicide & Crisis Lifeline", type: "gov", why: "U.S. crisis support" }]
     }) });
   }
