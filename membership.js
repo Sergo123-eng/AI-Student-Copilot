@@ -9,7 +9,7 @@
       title: "$1 Starter",
       price: "$1 / day",
       detail: "One topic, explained in plain language with a memorable analogy.",
-      items: ["One guided topic", "Analogy-first explanation", "Made for absolute beginners"],
+      items: ["Up to 3 prompts in 24 hours", "Analogy-first explanations", "Made for absolute beginners"],
       button: "Get 24-hour access"
     },
     student: {

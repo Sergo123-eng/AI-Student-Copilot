@@ -17,6 +17,7 @@ export default async function handler(req, res) {
 
   const access = readAccess(req);
   if (!access || !PLAN_INSTRUCTIONS[access.plan]) return res.status(401).json({ error: "An active StudentSpark subscription is required." });
+  if (access.plan === "day" && Number(access.prompts || 0) >= 3) return res.status(429).json({ error: "Your 24-hour Starter pass includes three prompts. Choose Student Guide or Academic Plus for continued access." });
 
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) return res.status(500).json({ error: "Server is missing ANTHROPIC_API_KEY" });
@@ -47,6 +48,7 @@ export default async function handler(req, res) {
       return res.status(502).json({ error: "Upstream error" });
     }
     const text = (j.content || []).map(c => (c && c.text) || "").join("");
+    if (access.plan === "day") issueAccess(res, { ...access, prompts: Number(access.prompts || 0) + 1 });
     return res.status(200).json({ text });
   } catch (e) {
     console.error(e);
