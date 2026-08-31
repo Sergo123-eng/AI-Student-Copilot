@@ -123,7 +123,7 @@
         <h1>Learn with clarity. <span>Start with a plan.</span></h1>
         <p className="ss-lede">Your calm study partner for difficult classes. StudentSpark makes concepts click with guidance, memorable analogies, and scholarly reading suggestions when your plan includes Academic support.</p>
       </section>
-      <label className="ss-email"><span>Student email</span><input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="you@school.edu" aria-label="Student .edu email address" /><small>StudentSpark is available to verified .edu student addresses.</small></label>
+      <label className="ss-email"><span>Student email</span><input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="you@school.edu" aria-label="Student .edu email address" /><small>StudentSpark is available to .edu student addresses only.</small></label>
       <section className="ss-plans" aria-label="Subscription plans">
         {Object.keys(PLAN_COPY).map(plan => <PlanCard key={plan} plan={plan} busy={busy} choose={choose} />)}
       </section>
