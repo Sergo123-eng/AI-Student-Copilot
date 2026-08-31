@@ -11,7 +11,9 @@ export default async function handler(req, res) {
     if (!paid) return res.redirect(302, "/?checkout=pending");
     const plan = session.metadata?.plan;
     if (!['day','student','academic'].includes(plan)) return res.redirect(302, "/?checkout=error");
-    issueAccess(res, { email: session.customer_details?.email || "student", name: session.customer_details?.name || "Student", plan, customer: String(session.customer || "") });
+    const email = String(session.customer_details?.email || "").trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.edu$/i.test(email)) return res.redirect(302, "/?checkout=edu-required");
+    issueAccess(res, { email, name: session.customer_details?.name || email.split("@")[0], plan, customer: String(session.customer || "") });
     return res.redirect(302, "/?checkout=success");
   } catch { return res.redirect(302, "/?checkout=error"); }
 }

@@ -6,26 +6,26 @@
   const PLAN_COPY = {
     day: {
       eyebrow: "24-hour pass",
-      title: "$1 Starter",
+      title: "$1 Day Pass",
       price: "$1 / day",
-      detail: "Unlimited study prompts for 24 hours, explained in plain language with memorable analogies.",
-      items: ["Unlimited prompts for 24 hours", "Analogy-first explanations", "Made for absolute beginners"],
+      detail: "A full day of Student Guide and Academic support, with clear explanations and analogies.",
+      items: ["Unlimited prompts for 24 hours", "Guide + academic explanations", "Trusted-source reading suggestions"],
       button: "Get 24-hour access"
     },
     student: {
       eyebrow: "Most popular",
       title: "Student Guide",
       price: "$3 / month",
-      detail: "The complete StudentSpark guide experience, including your study workflow.",
-      items: ["Ask, My Week, and Guidelines", "Personalized study guidance", "Cancel any time"],
+      detail: "A focused study coach for planning, understanding assignments, and staying on track.",
+      items: ["Ask, My Week, and Guidelines", "Personalized study guidance", "Guide tools only — no academic source mode"],
       button: "Start Student Guide"
     },
     academic: {
       eyebrow: "Best value",
       title: "Academic Plus",
       price: "$30 / year",
-      detail: "Trusted academic sources and a polished, color-coded learning view.",
-      items: ["Three quality academic sources", "Definitions, rules, and examples in clear colors", "Source-aware analogies and comparisons"],
+      detail: "The complete year of academic support: concepts, analogies, and trusted-source reading suggestions.",
+      items: ["Academic help + Student Guide", "Definitions, rules, and examples in clear sections", "Up to three relevant scholarly reading suggestions"],
       button: "Choose Academic Plus"
     }
   };
@@ -52,6 +52,8 @@
     const [email, setEmail] = useState("");
     const [code, setCode] = useState("");
 
+    function isEduEmail(value) { return /^[^\\s@]+@[^\\s@]+\\.edu$/i.test(String(value || "").trim()); }
+
     useEffect(() => {
       fetch("/api/session", { credentials: "same-origin" })
         .then(r => r.ok ? r.json() : null)
@@ -61,12 +63,13 @@
     }, []);
 
     async function choose(plan) {
+      if (!isEduEmail(email)) { setError("Use a valid .edu student email address to continue."); return; }
       setBusy(true); setError("");
       try {
         const r = await fetch("/api/create-checkout", {
           method: "POST", credentials: "same-origin",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ plan })
+          body: JSON.stringify({ plan, email: email.trim() })
         });
         const data = await r.json();
         if (!r.ok || !data.url) throw new Error(data.error || "Checkout could not be started.");
@@ -78,9 +81,10 @@
     }
 
     async function startFreeTrial() {
+      if (!isEduEmail(email)) { setError("Use a valid .edu student email address to start the free trial."); return; }
       setBusy(true); setError("");
       try {
-        const r = await fetch("/api/free-trial", { method: "POST", credentials: "same-origin" });
+        const r = await fetch("/api/free-trial", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: email.trim() }) });
         const data = await r.json();
         if (!r.ok || !data.active) throw new Error(data.error || "The free trial could not be started.");
         setSession(data);
@@ -117,12 +121,13 @@
         <div className="brand"><span className="brand-mark">SS</span><span className="brand-n">StudentSpark <b>Copilot</b></span></div>
         <p className="ss-kicker">Study help that makes difficult ideas click.</p>
         <h1>Learn with clarity. <span>Start with a plan.</span></h1>
-        <p className="ss-lede">Create your secure account through checkout. A subscription is required before you can enter StudentSpark Copilot.</p>
+        <p className="ss-lede">Your calm study partner for difficult classes. StudentSpark makes concepts click with guidance, memorable analogies, and scholarly reading suggestions when your plan includes Academic support.</p>
       </section>
+      <label className="ss-email"><span>Student email</span><input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="you@school.edu" aria-label="Student .edu email address" /><small>StudentSpark is available to verified .edu student addresses.</small></label>
       <section className="ss-plans" aria-label="Subscription plans">
         {Object.keys(PLAN_COPY).map(plan => <PlanCard key={plan} plan={plan} busy={busy} choose={choose} />)}
       </section>
-      <button className="ss-free" disabled={busy} onClick={startFreeTrial}>Try 3 prompts free — no card needed</button>
+      <button className="ss-free" disabled={busy} onClick={startFreeTrial}>Try StudentSpark free for 3 days — no card needed</button>
       {error && <p className="ss-error">{error}</p>}
       <form className="ss-code" onSubmit={redeem}>
         <strong>Have a promo code?</strong>
@@ -139,7 +144,7 @@
   const style = document.createElement("style");
   style.textContent = `
     .brand-mark{font-size:0}.brand-mark:after{content:'SS';font-size:12px}.brand-n{font-size:0}.brand-n:after{content:'StudentSpark Copilot';font-size:16px}.ss-gate{min-height:100%;padding:44px 24px 56px;background:radial-gradient(circle at 15% 8%,#263f6b 0,transparent 30%),radial-gradient(circle at 88% 12%,#4d2358 0,transparent 30%),var(--bg);color:var(--ink)}
-    .ss-hero{max-width:940px;margin:0 auto 28px;text-align:center}.ss-hero .brand{justify-content:center;margin-bottom:30px}.ss-kicker,.ss-eyebrow{font-size:11px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:var(--flame-2)}.ss-hero h1{font-size:clamp(38px,6vw,70px);line-height:1.02;letter-spacing:-.055em;margin:10px auto 14px;max-width:800px}.ss-hero h1 span{color:#f7c7ef}.ss-lede{max-width:610px;margin:0 auto;color:var(--ink-2);font-size:16px;line-height:1.6}
+    .ss-hero{max-width:940px;margin:0 auto 28px;text-align:center}.ss-hero .brand{justify-content:center;margin-bottom:30px}.ss-kicker,.ss-eyebrow{font-size:11px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:var(--flame-2)}.ss-hero h1{font-size:clamp(38px,6vw,70px);line-height:1.02;letter-spacing:-.055em;margin:10px auto 14px;max-width:800px}.ss-hero h1 span{color:#f7c7ef}.ss-lede{max-width:710px;margin:0 auto;color:var(--ink-2);font-size:16px;line-height:1.6}.ss-email{display:block;max-width:440px;margin:0 auto 24px;text-align:left}.ss-email span{display:block;font-size:12px;font-weight:800;margin:0 0 6px}.ss-email input{width:100%;border:1px solid var(--line-2);background:var(--card-2);color:var(--ink);border-radius:10px;padding:11px 12px;font:inherit}.ss-email small{display:block;color:var(--muted);font-size:11px;margin-top:6px}
     .ss-plans{max-width:1120px;margin:auto;display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:stretch}.ss-plan{background:rgba(23,31,45,.88);border:1px solid var(--line-2);border-radius:20px;padding:24px;display:flex;flex-direction:column;box-shadow:0 16px 45px rgba(0,0,0,.18)}.ss-plan.ss-student{border-color:#819cf4;transform:translateY(-7px);background:linear-gradient(160deg,#263b67,#1c2637)}.ss-plan.ss-academic{border-color:#c977ba;background:linear-gradient(160deg,#472f5e,#20283a)}.ss-plan h2{font-size:23px;margin:8px 0 2px}.ss-price{font-size:25px;font-weight:800;color:var(--honey);margin:0 0 13px}.ss-detail{color:var(--ink-2);font-size:13.5px;line-height:1.5;min-height:62px}.ss-plan ul{list-style:none;margin:14px 0 24px;padding:0;display:flex;flex-direction:column;gap:10px}.ss-plan li{font-size:13px;color:var(--ink-2);padding-left:22px;position:relative;line-height:1.4}.ss-plan li:before{content:'✓';position:absolute;left:0;color:var(--teal);font-weight:800}.ss-cta{margin-top:auto;width:100%}.ss-academic .ss-cta{background:#e69bd4}.ss-error{max-width:680px;margin:22px auto 0;padding:10px 14px;border:1px solid #9b4f69;background:#402434;color:#ffc4d6;border-radius:10px;text-align:center}.ss-foot{max-width:620px;text-align:center;color:var(--muted);font-size:12px;line-height:1.5;margin:20px auto 0}@media(max-width:800px){.ss-plans{grid-template-columns:1fr;max-width:480px}.ss-plan.ss-student{transform:none}.ss-detail{min-height:0}}
   `;
   document.head.appendChild(style);
