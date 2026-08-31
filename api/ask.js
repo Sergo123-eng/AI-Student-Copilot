@@ -7,11 +7,38 @@ import { scholarlyReadingSuggestions } from "../lib/trusted-sources.js";
 
 const ALLOWED_MODEL = "claude-sonnet-4-5";
 const PLAN_INSTRUCTIONS = {
-  free: "Give one focused topic explanation. Use simple words, one relatable analogy, and short sentences. Do not provide a study plan, multiple topics, or source comparison.",
-  day: "Give complete Student Guide and Academic support: clear explanation, practical study steps, memorable analogies, and three trustworthy academic reading suggestions when relevant. Never invent citations or URLs.",
+  free: "Give one focused topic explanation. Use simple words, one relatable analogy, and short sentences. Do not provide a study plan, multiple topics, source comparison, or homework solutions.",
+  day: "Give complete Student Guide and Academic support: explain concepts clearly, show the approach to a problem, offer practice questions, identify the skill to improve, and use memorable analogies. Never invent citations or URLs.",
   student: "Give the complete Student Guide response: clear explanation, useful examples, practical next study steps, and a supportive tone.",
-  academic: "Give the complete Academic Plus response. Use clearly labelled sections: Definitions, Rules, Examples, Analogy, and Source comparison. When reading suggestions are supplied, describe them only as further reading; do not claim facts from them unless the supplied metadata supports that claim. Never invent citations or URLs."
+  academic: "Give the complete Academic Plus response. Explain concepts, show a problem-solving approach, offer practice questions, identify the skill to improve, and use memorable analogies. Use clearly labelled sections: Definitions, Rules, Examples, Analogy, Practice, Skill to build, and Further reading. Never invent citations or URLs."
 };
+
+const SEXUAL_RE = /\b(sex|sexting|hookup|porn|nudes|virginity|condom|std|sti|birth control|plan b|orgasm|masturbat|threesome)\b/i;
+const MENTAL_HEALTH_RE = /\b(suicid|self.?harm|kill myself|want to die|depress|anxiet|panic attack|trauma|eating disorder|abuse|assault|rape|stalking|mental health|psychological)\b/i;
+const UPDATED_RULES = `
+UPDATED STUDENTSPARK PRODUCT RULES — these override conflicting instructions in the requested system:
+- Return ONLY the JSON structure requested by the caller. Never add markdown around it.
+- StudentSpark is warm, direct, and encouraging. When a student fears a result or asks for an expected outcome, do not predict it. State the next controllable step and add one brief honest encouragement such as "I believe you can take this one step at a time."
+- For day and academic access, academic questions may include clear explanations, an analogy, a problem-solving approach, and 2–4 practice questions. Do not complete graded work presented as a live assignment or exam. Teach the method and let the student do the final work.
+- For day and academic access, identify the primary skill being tested (for example: problem decomposition, algebraic fluency, active reading, evidence evaluation, argument building, or recall). Give one concrete drill to improve it this week. For the $3 student plan, provide guide and planning support only, without academic source mode or worked academic instruction.
+- For non-academic questions such as financial aid, give concrete steps for this week and cite only official sources such as the student's financial-aid office, studentaid.gov, or an applicable government agency. Do not guess a school policy, deadline, office, or outcome.
+- Never use Wikipedia, Reddit, anonymous forums, answer mills, or social posts as sources. Only name sources that are supplied in this request, official .edu/.gov pages, established academic publishers, or the approved study-resource list.
+- If the question is sexual, decline briefly: "I cannot answer sexual questions. You can ask me for other guidance or academic help." Return no resources or suggestions.
+- If the question asks for psychological or mental-health counseling, do not counsel or diagnose. Encourage the student to contact their campus personal counseling center. If they provide an institution name, say you can help them locate that institution's official counseling-office page; never invent its URL. If there is immediate danger, direct them to local emergency services and, in the U.S., call or text 988.
+- When scholarly reading suggestions are supplied below, present them as further-reading suggestions only. Do not claim to have read a full work or to know that it supports a specific claim beyond its metadata.
+`;
+
+function safeJsonResponse(data) {
+  return JSON.stringify({
+    answer: data.answer,
+    suggestions: data.suggestions || [],
+    forYou: [],
+    resources: data.resources || [],
+    needsClass: false,
+    sources: data.sources || [],
+    care: !!data.care
+  });
+}
 
 export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(204).end();
@@ -28,13 +55,24 @@ export default async function handler(req, res) {
   body = body || {};
 
   const requestedSystem = typeof body.system === "string" ? body.system.slice(0, 16000) : "";
-  const system = `${PLAN_INSTRUCTIONS[access.plan]}\n\n${requestedSystem}`;
+  const system = PLAN_INSTRUCTIONS[access.plan] + "\n\n" + requestedSystem + "\n\n" + UPDATED_RULES;
   const messages = Array.isArray(body.messages) ? body.messages.slice(-20).map(m => ({
     role: m && m.role === "assistant" ? "assistant" : "user",
     content: String((m && m.content) || "").slice(0, 8000)
   })) : [];
   if (!messages.length) return res.status(400).json({ error: "No messages" });
   const latestQuestion = [...messages].reverse().find(m => m.role === "user")?.content || "";
+  if (SEXUAL_RE.test(latestQuestion)) {
+    return res.status(200).json({ text: safeJsonResponse({ answer: "I cannot answer sexual questions. You can ask me for other guidance or academic help." }) });
+  }
+  if (MENTAL_HEALTH_RE.test(latestQuestion)) {
+    return res.status(200).json({ text: safeJsonResponse({
+      care: true,
+      answer: "I cannot provide psychological counseling or a diagnosis. Please contact your campus personal counseling center. If you share your institution name, I can help you look for its official counseling-office page. If you may be in immediate danger, contact local emergency services; in the U.S., call or text 988.",
+      suggestions: ["Contact your campus personal counseling center today.", "Reach out to a trusted person who can be with you or help you make the call."],
+      sources: [{ name: "Campus personal counseling center", type: "edu", why: "Official student support service" }, { name: "988 Suicide & Crisis Lifeline", type: "gov", why: "U.S. crisis support" }]
+    }) });
+  }
   const sources = ["day", "academic"].includes(access.plan) ? await scholarlyReadingSuggestions(latestQuestion) : [];
   const sourceContext = sources.length ? `\n\nFurther-reading suggestions returned from Crossref's scholarly DOI metadata index:\n${sources.map((s, i) => `${i + 1}. ${s.title}${s.journal ? ` — ${s.journal}` : ""} (${s.url})`).join("\n")}\nUse these only as clearly labelled further reading. Do not imply you read the full papers.` : "";
   const systemWithSources = `${system}${sourceContext}`;
@@ -53,8 +91,19 @@ export default async function handler(req, res) {
       return res.status(502).json({ error: "Upstream error" });
     }
     const text = (j.content || []).map(c => (c && c.text) || "").join("");
-    const sourcesText = sources.length ? `\n\n**Trusted further reading**\n${sources.map(s => `- [${s.title}](${s.url})${s.journal ? ` — ${s.journal}` : ""}`).join("\n")}\n\n*These are scholarly DOI records from Crossref. Open the source to assess relevance to your course.*` : "";
-    return res.status(200).json({ text: `${text}${sourcesText}` });
+    let output = text;
+    if (sources.length) {
+      try {
+        const parsed = JSON.parse(text.replace(/^```(?:json)?/i, "").replace(/```\s*$/, "").trim());
+        parsed.sources = Array.isArray(parsed.sources) ? parsed.sources : [];
+        parsed.sources.push(...sources.map(s => ({ name: s.title, type: "research", why: "Further reading: " + (s.journal || "Crossref DOI record") + " — " + s.url })));
+        output = JSON.stringify(parsed);
+      } catch {
+        // The UI can still display a plain model response if the provider did
+        // not follow its JSON contract; do not manufacture citations.
+      }
+    }
+    return res.status(200).json({ text: output });
   } catch (e) {
     console.error(e);
     return res.status(502).json({ error: "Could not reach the model provider" });
