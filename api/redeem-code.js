@@ -17,7 +17,9 @@ export default function handler(req, res) {
   if (!isAdmin && !/^[^\s@]+@[^\s@]+\.edu$/i.test(email)) return res.status(403).json({ error: "Promo access is available to .edu student email addresses only." });
   if (!isAdmin && !hasPromo) return res.status(403).json({ error: "That promo code is not valid." });
 
-  const plan = isAdmin ? "academic" : (process.env.FREE_ACCESS_PLAN === "academic" ? "academic" : "student");
+  // A public promo is deliberately limited to the 24-hour Day Pass. The
+  // admin code remains full Academic access.
+  const plan = isAdmin ? "academic" : "day";
   issueAccess(res, { email, name: email.split("@")[0], plan, customer: isAdmin ? "admin" : "promo" });
   return res.status(200).json({ active: true, email, name: email.split("@")[0], plan });
 }
