@@ -97,7 +97,11 @@ export default async function handler(req, res) {
     const j = await r.json();
     if (!r.ok) {
       console.error("provider error", r.status, j && j.error);
-      return res.status(502).json({ error: "Upstream error" });
+      const providerMessage = String(j?.error?.message || "");
+      if (/credit balance is too low|purchase credits|billing/i.test(providerMessage)) {
+        return res.status(503).json({ error: "StudentSpark is temporarily unavailable because its AI service needs credits. Please try again shortly." });
+      }
+      return res.status(502).json({ error: "The AI service could not respond right now. Please try again shortly." });
     }
     const text = (j.content || []).map(c => (c && c.text) || "").join("");
     let output = text;
