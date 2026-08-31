@@ -49,6 +49,8 @@
     const [ready, setReady] = useState(false);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
+    const [email, setEmail] = useState("");
+    const [code, setCode] = useState("");
 
     useEffect(() => {
       fetch("/api/session", { credentials: "same-origin" })
@@ -80,6 +82,22 @@
       setSession(null);
     }
 
+    async function redeem(event) {
+      event.preventDefault();
+      setBusy(true); setError("");
+      try {
+        const r = await fetch("/api/redeem-code", {
+          method: "POST", credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, code })
+        });
+        const data = await r.json();
+        if (!r.ok || !data.active) throw new Error(data.error || "That code could not be used.");
+        setSession(data);
+      } catch (e) { setError(e.message || "That code could not be used."); }
+      finally { setBusy(false); }
+    }
+
     if (!ready) return <div className="auth"><div className="auth-card"><p className="auth-p">Checking your secure access…</p></div></div>;
     if (session) return children({ name: session.name || session.email, email: session.email, plan: session.plan }, signOut);
 
@@ -94,6 +112,12 @@
         {Object.keys(PLAN_COPY).map(plan => <PlanCard key={plan} plan={plan} busy={busy} choose={choose} />)}
       </section>
       {error && <p className="ss-error">{error}</p>}
+      <form className="ss-code" onSubmit={redeem}>
+        <strong>Have a promo code?</strong>
+        <input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="you@school.edu" aria-label="Email address" />
+        <input required value={code} onChange={e => setCode(e.target.value)} placeholder="Enter promo code" aria-label="Promo code" />
+        <button className="ghost" disabled={busy} type="submit">{busy ? "Checking…" : "Unlock access"}</button>
+      </form>
       <p className="ss-foot">Payments are securely processed by Stripe. You can manage or cancel a recurring subscription from the customer portal.</p>
     </div>;
   }
@@ -107,4 +131,5 @@
     .ss-plans{max-width:1120px;margin:auto;display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:stretch}.ss-plan{background:rgba(23,31,45,.88);border:1px solid var(--line-2);border-radius:20px;padding:24px;display:flex;flex-direction:column;box-shadow:0 16px 45px rgba(0,0,0,.18)}.ss-plan.ss-student{border-color:#819cf4;transform:translateY(-7px);background:linear-gradient(160deg,#263b67,#1c2637)}.ss-plan.ss-academic{border-color:#c977ba;background:linear-gradient(160deg,#472f5e,#20283a)}.ss-plan h2{font-size:23px;margin:8px 0 2px}.ss-price{font-size:25px;font-weight:800;color:var(--honey);margin:0 0 13px}.ss-detail{color:var(--ink-2);font-size:13.5px;line-height:1.5;min-height:62px}.ss-plan ul{list-style:none;margin:14px 0 24px;padding:0;display:flex;flex-direction:column;gap:10px}.ss-plan li{font-size:13px;color:var(--ink-2);padding-left:22px;position:relative;line-height:1.4}.ss-plan li:before{content:'✓';position:absolute;left:0;color:var(--teal);font-weight:800}.ss-cta{margin-top:auto;width:100%}.ss-academic .ss-cta{background:#e69bd4}.ss-error{max-width:680px;margin:22px auto 0;padding:10px 14px;border:1px solid #9b4f69;background:#402434;color:#ffc4d6;border-radius:10px;text-align:center}.ss-foot{max-width:620px;text-align:center;color:var(--muted);font-size:12px;line-height:1.5;margin:20px auto 0}@media(max-width:800px){.ss-plans{grid-template-columns:1fr;max-width:480px}.ss-plan.ss-student{transform:none}.ss-detail{min-height:0}}
   `;
   document.head.appendChild(style);
+  style.textContent += `.ss-code{max-width:760px;margin:24px auto 0;display:grid;grid-template-columns:1.05fr 1fr 1fr auto;gap:8px;align-items:center;background:rgba(23,31,45,.72);border:1px solid var(--line);padding:12px;border-radius:14px}.ss-code strong{font-size:13px}.ss-code input{min-width:0;border:1px solid var(--line-2);background:var(--card-2);color:var(--ink);border-radius:8px;padding:8px 10px;font:inherit;font-size:13px}.ss-code .ghost{padding:8px 13px}@media(max-width:800px){.ss-code{grid-template-columns:1fr}.ss-code .ghost{width:100%}}`;
 })();
