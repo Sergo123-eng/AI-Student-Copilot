@@ -246,6 +246,34 @@ document.addEventListener('DOMContentLoaded', async function() {
           }
         }
 
+        // My Week stores durations internally for layout, but the editor
+        // asks students for a start and end time instead of "90 minutes".
+        if (uuid === '2c9b9ab9-726b-4420-ab3d-c908fd20c2a1') {
+          let source = new TextDecoder().decode(finalBytes);
+          source = source.replace(
+            'const [mins, setMins] = useStateW(block.mins);',
+            'const [end, setEnd] = useStateW(fmtH(block.start + block.mins / 60));'
+          );
+          source = source.replace(
+            '<label className="bm-l">Minutes\n            <select value={mins} onChange={e => setMins(Number(e.target.value))}>\n              {[15, 30, 45, 60, 75, 90, 120, 150, 180].map(m => <option key={m} value={m}>{m}</option>)}\n            </select>\n          </label>',
+            '<label className="bm-l">Ends\n            <input value={end} onChange={e => setEnd(e.target.value)} placeholder="3:00 pm" />\n          </label>'
+          );
+          source = source.replace(
+            'const s = parseTime(start);\n              onSave({ ...block, title: noStars(name) || block.title, day, start: s === null ? block.start : s, mins,',
+            'const s = parseTime(start), e = parseTime(end);\n              const safeStart = s === null ? block.start : s;\n              const safeMins = e !== null && e > safeStart ? Math.round((e - safeStart) * 60) : block.mins;\n              onSave({ ...block, title: noStars(name) || block.title, day, start: safeStart, mins: safeMins,'
+          );
+          source = source.replaceAll('FlexRow key={e.id}', 'EntryRow key={e.id}');
+          source = source.replaceAll('{ id: uid(), name: "", days: [], mins: 90 }', '{ id: uid(), name: "", days: [], start: "", end: "" }');
+          source = source.replaceAll('{ id: uid(), name: "", days: [], mins: 60 }', '{ id: uid(), name: "", days: [], start: "", end: "" }');
+          source = source.replace(
+            'const cb = toBlocks(classes, "class"), ub = toBlocks(clubs, "club"), lb = toBlocks(life, "other");\n    const onlineFlex = online.filter(e => noStars(e.name)).map(e => ({ ...e, kind: "class" }));\n    const unsureFlex = unsure.filter(e => noStars(e.name)).map(e => ({ ...e, kind: "other" }));',
+            'const cb = toBlocks([...classes, ...online], "class"), ub = toBlocks(clubs, "club"), lb = toBlocks([...life, ...unsure], "other");\n    const onlineFlex = [];\n    const unsureFlex = [];'
+          );
+          source = source.replace('Online classes</h3><span>No set meeting time — pick a length, I will find the slot</span>', 'Online classes</h3><span>Name, days, start and end</span>');
+          source = source.replace('Things you want to fit in, but do not know when</h3><span>I will pick a time with no overlap</span>', 'Other tasks and commitments</h3><span>Name, days, start and end</span>');
+          finalBytes = new TextEncoder().encode(source);
+        }
+
         if (pageSet.has(uuid)) {
           pageTexts[uuid] = new TextDecoder().decode(finalBytes);
           return;
