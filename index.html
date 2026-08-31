@@ -136,6 +136,18 @@ document.addEventListener('DOMContentLoaded', async function() {
     const isPageRoot = pageOrder.length > 0;
     const blobUrls = {};
     const resourceBlobs = {};
+    // The original artifact has a local-only sign-in script. Fetch the real
+    // StudentSpark gate while we are on this site and substitute it for that
+    // embedded script before Babel executes any app code.
+    let membershipSource = '';
+    try {
+      const membershipResponse = await fetch('/membership.js', { cache: 'no-store' });
+      if (!membershipResponse.ok) throw new Error('membership gate unavailable');
+      membershipSource = await membershipResponse.text();
+    } catch (membershipError) {
+      console.error('Could not load StudentSpark membership gate:', membershipError);
+      throw membershipError;
+    }
     const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
     const pendingFrames = {}; // uuid -> [{el, frag}] awaiting text for own frames
     const pendingRelays = {}; // uuid -> [childWindow] awaiting text to pass down
@@ -273,6 +285,9 @@ document.addEventListener('DOMContentLoaded', async function() {
           source = source.replace('Things you want to fit in, but do not know when</h3><span>I will pick a time with no overlap</span>', 'Other tasks and commitments</h3><span>Name, days, start and end</span>');
           finalBytes = new TextEncoder().encode(source);
         }
+        if (uuid === 'd3f69ec9-36ea-4eaa-9a07-957db160bea8') {
+          finalBytes = new TextEncoder().encode(membershipSource);
+        }
 
         if (pageSet.has(uuid)) {
           pageTexts[uuid] = new TextDecoder().decode(finalBytes);
@@ -318,33 +333,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     // a null origin, so crossorigin forces a CORS fetch that SRI then rejects.
     // The manifest bytes are ours; SRI protects against CDN compromise, not this.
     template = template.replace(/\s+integrity="[^"]*"/gi, '').replace(/\s+crossorigin="[^"]*"/gi, '');
-
-    // The source page is a self-contained legacy bundle. Load the live
-    // membership gate after its views but before it mounts the application.
-    // Keep closing tags split in the loader source itself: an HTML parser
-    // terminates this outer script even when a literal closing script tag is inside a
-    // JavaScript string.
-    const closingScript = '<' + '/script>';
-    // The rendered app runs from a blob document, where a relative
-    // membership.js URL would also resolve to blob: and fail. Read it while
-    // we are still on this real site, then place it inline in the rendered
-    // document.
-    let membershipSource = '';
-    try {
-      const membershipResponse = await fetch('/membership.js', { cache: 'no-store' });
-      if (!membershipResponse.ok) throw new Error('membership gate unavailable');
-      membershipSource = await membershipResponse.text();
-    } catch (membershipError) {
-      console.error('Could not load StudentSpark membership gate:', membershipError);
-      throw membershipError;
-    }
-    const membershipScript = '<script type="text/babel">' +
-      membershipSource.replace(/<\/script/gi, '<\\/script') + closingScript;
-    template = template.replace(
-      '<script type="text/babel" src="30919117-94fa-427f-83d9-736a50d31bca">' + closingScript,
-      membershipScript +
-      '<script type="text/babel" src="30919117-94fa-427f-83d9-736a50d31bca">' + closingScript
-    );
 
     const resourceScript = '<script>window.__resources = ' +
       JSON.stringify(resourceMap).replace(/<\//g, '<\\/') +
