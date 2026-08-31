@@ -325,9 +325,24 @@ document.addEventListener('DOMContentLoaded', async function() {
     // terminates this outer script even when a literal closing script tag is inside a
     // JavaScript string.
     const closingScript = '<' + '/script>';
+    // The rendered app runs from a blob document, where a relative
+    // membership.js URL would also resolve to blob: and fail. Read it while
+    // we are still on this real site, then place it inline in the rendered
+    // document.
+    let membershipSource = '';
+    try {
+      const membershipResponse = await fetch('/membership.js', { cache: 'no-store' });
+      if (!membershipResponse.ok) throw new Error('membership gate unavailable');
+      membershipSource = await membershipResponse.text();
+    } catch (membershipError) {
+      console.error('Could not load StudentSpark membership gate:', membershipError);
+      throw membershipError;
+    }
+    const membershipScript = '<script type="text/babel">' +
+      membershipSource.replace(/<\/script/gi, '<\\/script') + closingScript;
     template = template.replace(
       '<script type="text/babel" src="30919117-94fa-427f-83d9-736a50d31bca">' + closingScript,
-      '<script type="text/babel" src="membership.js">' + closingScript +
+      membershipScript +
       '<script type="text/babel" src="30919117-94fa-427f-83d9-736a50d31bca">' + closingScript
     );
 
