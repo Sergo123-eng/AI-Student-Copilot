@@ -1,6 +1,6 @@
 import Stripe from "stripe";
 import { issueAccess } from "../lib/access.js";
-import { recordMembership } from "../lib/student-store.js";
+import { recordMembership, addStudyCredits } from "../lib/student-store.js";
 
 export default async function handler(req, res) {
   const sessionId = String(req.query?.session_id || "");
@@ -11,6 +11,12 @@ export default async function handler(req, res) {
     const paid = session.mode === "subscription" ? ["active", "trialing"].includes(session.subscription?.status) : session.payment_status === "paid";
     if (!paid) return res.redirect(302, "/?checkout=pending");
     const checkoutPlan = session.metadata?.plan;
+    if (checkoutPlan === "study_credits") {
+      const email = String(session.customer_details?.email || "").trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.edu$/i.test(email)) return res.redirect(302, "/?checkout=edu-required");
+      await addStudyCredits({ email, credits: 10, paymentId: String(session.payment_intent || session.id) });
+      return res.redirect(302, "/?checkout=credits-added");
+    }
     const accessPlan = checkoutPlan === "day" ? "day" : checkoutPlan?.replace(/_(monthly|annual)$/, "");
     const billing = checkoutPlan?.endsWith("_annual") ? "annual" : "monthly";
     if (!['day','plus','pro','super'].includes(accessPlan)) return res.redirect(302, "/?checkout=error");
