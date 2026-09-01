@@ -92,7 +92,15 @@ export default async function handler(req, res) {
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: ALLOWED_MODEL, max_tokens, system: systemWithSources, messages })
+      // Reuses the stable prompt prefix for a short period. This lowers repeated
+      // input-token cost without persisting a student's chat content in our app.
+      body: JSON.stringify({
+        model: ALLOWED_MODEL,
+        max_tokens,
+        system: systemWithSources,
+        messages,
+        cache_control: { type: "ephemeral" }
+      })
     });
     const j = await r.json();
     if (!r.ok) {
