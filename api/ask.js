@@ -5,7 +5,7 @@
 import { readAccess } from "../lib/access.js";
 import { scholarlyReadingSuggestions } from "../lib/trusted-sources.js";
 import { findCampusCounselingOffice } from "../lib/campus-search.js";
-import { ensureStudent, findSharedAnswer, saveSharedAnswer } from "../lib/student-store.js";
+import { ensureStudent, findSharedAnswer, saveSharedAnswer, consumePlanUsage } from "../lib/student-store.js";
 
 const ALLOWED_MODEL = "claude-sonnet-4-5";
 const PLAN_INSTRUCTIONS = {
@@ -86,6 +86,13 @@ export default async function handler(req, res) {
       resources,
       sources: [{ name: "Campus personal counseling center", type: "edu", why: "Official student support service" }, { name: "988 Suicide & Crisis Lifeline", type: "gov", why: "U.S. crisis support" }]
     }) });
+  }
+  try {
+    const usage = await consumePlanUsage(access.email, access.plan, latestQuestion);
+    if (!usage.allowed) return res.status(429).json({ error: "You have reached this plan's fair-use limit. Choose an upgrade or wait for the next renewal period." });
+  } catch (e) {
+    console.error("usage counter", e.message);
+    return res.status(503).json({ error: "StudentSpark could not verify plan access right now. Please try again shortly." });
   }
   try {
     const cached = await findSharedAnswer(latestQuestion);
