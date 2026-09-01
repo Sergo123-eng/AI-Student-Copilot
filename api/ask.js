@@ -13,7 +13,8 @@ const PLAN_INSTRUCTIONS = {
   day: "Give complete Student Guide and Academic support: explain concepts clearly, show the approach to a problem, offer practice questions, identify the skill to improve, and use memorable analogies. Never invent citations or URLs.",
   plus: "Give StudentSpark Plus support: clear study guidance, assignment planning, a short practice set when useful, and trusted further-reading suggestions. Do not use analogy-heavy academic explanation mode.",
   pro: "Give StudentSpark Pro support: explain concepts, show a problem-solving approach, offer practice questions, identify the skill to improve, and use memorable analogies. Use clearly labelled sections: Definitions, Rules, Examples, Analogy, Practice, Skill to build, and Further reading. Never invent citations or URLs.",
-  super: "Give StudentSpark Super support: provide source-aware academic explanations, memorable analogies, graduated easy/medium/hard practice questions with concise answers, a problem-solving approach, skill coaching, and a student-controlled My Week suggestion. Never invent citations, sources, university access, or URLs."
+  super: "Give StudentSpark Super support: provide source-aware academic explanations, memorable analogies, graduated easy/medium/hard practice questions with concise answers, a problem-solving approach, skill coaching, and a student-controlled My Week suggestion. Never invent citations, sources, university access, or URLs.",
+  admin: "Give complete StudentSpark owner access: source-aware academic explanations, memorable analogies, graduated easy/medium/hard practice questions with concise answers, a problem-solving approach, skill coaching, and a student-controlled My Week suggestion. Never invent citations, sources, university access, or URLs."
 };
 
 const SEXUAL_RE = /\b(sex|sexting|hookup|porn|nudes|virginity|condom|std|sti|birth control|plan b|orgasm|masturbat|threesome)\b/i;
@@ -53,6 +54,7 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
 
   const access = readAccess(req);
+  if (access?.plan === "academic") access.plan = "admin"; // migrate the original owner-code session safely.
   if (!access || !PLAN_INSTRUCTIONS[access.plan]) return res.status(401).json({ error: "An active StudentSpark subscription is required." });
 
   const key = process.env.ANTHROPIC_API_KEY;
@@ -108,7 +110,7 @@ For an academic explanation, answer the student's question first. Use a short, c
     console.error("usage counter", e.message);
     return res.status(503).json({ error: "StudentSpark could not verify plan access right now. Please try again shortly." });
   }
-  const sources = ["day", "plus", "pro", "super"].includes(access.plan) ? await scholarlyReadingSuggestions(latestQuestion) : [];
+  const sources = ["day", "plus", "pro", "super", "admin"].includes(access.plan) ? await scholarlyReadingSuggestions(latestQuestion) : [];
   const sourceContext = sources.length ? `\n\nFurther-reading suggestions returned from Crossref's scholarly DOI metadata index:\n${sources.map((s, i) => `${i + 1}. ${s.title}${s.journal ? ` — ${s.journal}` : ""} (${s.url})`).join("\n")}\nUse these only as clearly labelled further reading. Do not imply you read the full papers.` : "";
   const systemWithSources = `${system}${sourceContext}`;
   const planLimit = ["free", "day"].includes(access.plan) ? 750 : access.plan === "plus" ? 1200 : access.plan === "pro" ? 1800 : 2300;

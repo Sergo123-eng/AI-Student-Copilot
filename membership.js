@@ -90,6 +90,22 @@
         .finally(() => setReady(true));
     }, []);
 
+    // A Day Pass can ask questions but cannot use My Week. The original
+    // bundled UI owns the navigation, so enforce this at the gate boundary
+    // before a click reaches that older component.
+    useEffect(() => {
+      if (session?.plan !== "day") return;
+      const blockMyWeek = event => {
+        const button = event.target?.closest?.("button");
+        if (button && button.textContent.trim() === "My Week") {
+          event.preventDefault(); event.stopPropagation();
+          setError("My Week is available with Plus, Pro, or Super. Upgrade to unlock scheduling.");
+        }
+      };
+      document.addEventListener("click", blockMyWeek, true);
+      return () => document.removeEventListener("click", blockMyWeek, true);
+    }, [session?.plan]);
+
     async function choose(plan) {
       if (!isEduEmail(email)) { setError("Use a valid .edu student email address to continue."); return; }
       if (!billingConsent) { setError("Please confirm that you understand the selected paid plan before continuing to secure checkout."); return; }

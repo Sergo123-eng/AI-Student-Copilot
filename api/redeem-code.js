@@ -20,7 +20,7 @@ export default async function handler(req, res) {
 
   // A public promo is deliberately limited to the 24-hour Day Pass. The
   // admin code remains full Academic access.
-  const plan = isAdmin ? "academic" : "day";
+  const plan = isAdmin ? "admin" : "day";
   try { await ensureStudent(email); } catch (e) { console.error("student store", e.message); }
   issueAccess(res, { email, name: email.split("@")[0], plan, customer: isAdmin ? "admin" : "promo" });
   return res.status(200).json({ active: true, email, name: email.split("@")[0], plan });
