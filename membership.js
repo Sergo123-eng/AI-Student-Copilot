@@ -9,7 +9,7 @@
       title: "$1 Day Pass",
       price: "$1 / day",
       detail: "A full day of Student Guide and Academic support, with clear explanations and analogies.",
-      items: ["Unlimited prompts for 24 hours", "Guide + academic explanations", "Trusted-source reading suggestions"],
+      items: ["Focused study support for the day", "Guide + academic explanations", "Trusted-source reading suggestions"],
       button: "Get 24-hour access"
     },
     student: {
@@ -17,7 +17,7 @@
       title: "Student Guide",
       price: "$3 / month",
       detail: "A focused study coach for planning, understanding assignments, and staying on track.",
-      items: ["Ask, My Week, and Guidelines", "Personalized study guidance", "Guide tools only — no academic source mode"],
+      items: ["Ask, My Week, and Guidelines", "Personalized study guidance", "Guide tools with clear, fair-use access"],
       button: "Start Student Guide"
     },
     academic: {
@@ -25,7 +25,7 @@
       title: "Academic Plus",
       price: "$30 / year",
       detail: "The complete year of academic support: concepts, analogies, and trusted-source reading suggestions.",
-      items: ["Academic help + Student Guide", "Definitions, rules, and examples in clear sections", "Up to three relevant scholarly reading suggestions"],
+      items: ["Academic help + Student Guide", "Definitions, rules, and examples in clear sections", "Relevant scholarly reading suggestions when available"],
       button: "Choose Academic Plus"
     }
   };
