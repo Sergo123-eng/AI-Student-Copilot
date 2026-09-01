@@ -5,6 +5,7 @@
 import { readAccess } from "../lib/access.js";
 import { scholarlyReadingSuggestions } from "../lib/trusted-sources.js";
 import { findCampusCounselingOffice } from "../lib/campus-search.js";
+import { ensureStudent, findSharedAnswer, saveSharedAnswer } from "../lib/student-store.js";
 
 const ALLOWED_MODEL = "claude-sonnet-4-5";
 const PLAN_INSTRUCTIONS = {
@@ -68,6 +69,9 @@ export default async function handler(req, res) {
   })) : [];
   if (!messages.length) return res.status(400).json({ error: "No messages" });
   const latestQuestion = [...messages].reverse().find(m => m.role === "user")?.content || "";
+  // Store the account server-side, but never put a student's private data in
+  // the cross-student answer cache.
+  try { await ensureStudent(access.email); } catch (e) { console.error("student store", e.message); }
   if (SEXUAL_RE.test(latestQuestion)) {
     return res.status(200).json({ text: safeJsonResponse({ answer: "I cannot answer sexual questions. You can ask me for other guidance or academic help." }) });
   }
@@ -82,6 +86,10 @@ export default async function handler(req, res) {
       sources: [{ name: "Campus personal counseling center", type: "edu", why: "Official student support service" }, { name: "988 Suicide & Crisis Lifeline", type: "gov", why: "U.S. crisis support" }]
     }) });
   }
+  try {
+    const cached = await findSharedAnswer(latestQuestion);
+    if (cached) return res.status(200).json({ text: JSON.stringify(cached), cached: true });
+  } catch (e) { console.error("shared answer cache", e.message); }
   const sources = ["day", "academic"].includes(access.plan) ? await scholarlyReadingSuggestions(latestQuestion) : [];
   const sourceContext = sources.length ? `\n\nFurther-reading suggestions returned from Crossref's scholarly DOI metadata index:\n${sources.map((s, i) => `${i + 1}. ${s.title}${s.journal ? ` — ${s.journal}` : ""} (${s.url})`).join("\n")}\nUse these only as clearly labelled further reading. Do not imply you read the full papers.` : "";
   const systemWithSources = `${system}${sourceContext}`;
@@ -123,6 +131,14 @@ export default async function handler(req, res) {
         // The UI can still display a plain model response if the provider did
         // not follow its JSON contract; do not manufacture citations.
       }
+    }
+    try {
+      const parsed = JSON.parse(output.replace(/^```(?:json)?/i, "").replace(/```\s*$/, "").trim());
+      // Only cache answers that have sources our server retrieved.  Never let
+      // unverified source labels invented by the model become cache metadata.
+      await saveSharedAnswer(latestQuestion, parsed, sources);
+    } catch (e) {
+      // A plain response cannot safely be shared across students.
     }
     return res.status(200).json({ text: output });
   } catch (e) {
