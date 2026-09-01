@@ -10,8 +10,8 @@
       price: "$1.99 / day",
       image: "/assets/plans/day-pass.png",
       imageAlt: "StudentSpark Day Pass — 24-hour access",
-      detail: "A full day of Student Guide and Academic support, with clear explanations and analogies.",
-      items: ["Focused study support for the day", "Guide + academic explanations", "Trusted-source reading suggestions"],
+      detail: "A focused 24-hour pass for guidance, trusted-source suggestions, and a short practice set.",
+      items: ["Focused study guidance for the day", "Trusted academic reading suggestions", "A short practice set when helpful"],
       button: "Get 24-hour access"
     },
     student: {
@@ -33,7 +33,7 @@
       image: "/assets/plans/pro.png",
       imageAlt: "StudentSpark Pro",
       detail: "More academic depth for explanations, analogies, practice, and source-aware study support.",
-      items: ["Everything in Student Guide", "Academic explanations + practice", "Source-aware further reading when available"],
+      items: ["Everything in Plus", "Academic explanations + practice", "Source-aware further reading when available"],
       button: "Choose Pro"
     },
     academic: {
@@ -179,10 +179,10 @@
           <thead><tr><th>Feature</th><th>Day Pass</th><th>Plus</th><th>Pro</th><th>Super</th></tr></thead>
           <tbody>
             <tr><th>Study guidance and next steps</th><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
-            <tr><th>My Week planning tools</th><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+            <tr><th>My Week planning tools</th><td>Upgrade</td><td>✓</td><td>✓</td><td>✓</td></tr>
             <tr><th>Clear academic explanations</th><td>Source-aware help</td><td>Practice + sources</td><td>✓</td><td>✓</td></tr>
             <tr><th>Analogies and practice support</th><td>Practice</td><td>Practice</td><td>✓</td><td>✓</td></tr>
-            <tr><th>Source-aware study reading</th><td>✓</td><td>—</td><td>✓</td><td>✓</td></tr>
+            <tr><th>Source-aware study reading</th><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
             <tr><th>Opt-in study reminders</th><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
           </tbody>
         </table></div>
