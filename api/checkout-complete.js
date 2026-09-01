@@ -10,11 +10,13 @@ export default async function handler(req, res) {
     const session = await stripe.checkout.sessions.retrieve(sessionId, { expand: ["subscription"] });
     const paid = session.mode === "subscription" ? ["active", "trialing"].includes(session.subscription?.status) : session.payment_status === "paid";
     if (!paid) return res.redirect(302, "/?checkout=pending");
-    const plan = session.metadata?.plan;
-    if (!['day','student','academic'].includes(plan)) return res.redirect(302, "/?checkout=error");
+    const checkoutPlan = session.metadata?.plan;
+    const accessPlan = checkoutPlan === "day" ? "day" : checkoutPlan?.replace(/_(monthly|annual)$/, "");
+    const billing = checkoutPlan?.endsWith("_annual") ? "annual" : "monthly";
+    if (!['day','plus','pro','super'].includes(accessPlan)) return res.redirect(302, "/?checkout=error");
     const email = String(session.customer_details?.email || "").trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.edu$/i.test(email)) return res.redirect(302, "/?checkout=edu-required");
-    const membershipPlan = plan === "student" ? "monthly" : plan === "academic" ? "annual" : "day";
+    const membershipPlan = accessPlan === "day" ? "day" : billing;
     const endsAt = session.mode === "subscription"
       ? (session.subscription?.current_period_end ? new Date(session.subscription.current_period_end * 1000).toISOString() : null)
       : new Date(Date.now() + 86400000).toISOString();
@@ -31,7 +33,7 @@ export default async function handler(req, res) {
       console.error("membership store", e.message);
       return res.redirect(302, "/?checkout=error");
     }
-    issueAccess(res, { email, name: session.customer_details?.name || email.split("@")[0], plan, customer: String(session.customer || "") });
+    issueAccess(res, { email, name: session.customer_details?.name || email.split("@")[0], plan: accessPlan, billing, customer: String(session.customer || "") });
     return res.redirect(302, "/?checkout=success");
   } catch { return res.redirect(302, "/?checkout=error"); }
 }

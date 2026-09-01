@@ -2,8 +2,12 @@ import Stripe from "stripe";
 
 const PLANS = {
   day: ["STRIPE_PRICE_DAY_PASS", "payment"],
-  student: ["STRIPE_PRICE_STUDENT_MONTHLY", "subscription"],
-  academic: ["STRIPE_PRICE_ACADEMIC_YEARLY", "subscription"]
+  plus_monthly: ["STRIPE_PRICE_PLUS_MONTHLY", "subscription"],
+  plus_annual: ["STRIPE_PRICE_PLUS_ANNUAL", "subscription"],
+  pro_monthly: ["STRIPE_PRICE_PRO_MONTHLY", "subscription"],
+  pro_annual: ["STRIPE_PRICE_PRO_ANNUAL", "subscription"],
+  super_monthly: ["STRIPE_PRICE_SUPER_MONTHLY", "subscription"],
+  super_annual: ["STRIPE_PRICE_SUPER_ANNUAL", "subscription"]
 };
 
 export default async function handler(req, res) {

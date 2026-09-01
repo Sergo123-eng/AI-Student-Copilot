@@ -11,8 +11,9 @@ const ALLOWED_MODEL = "claude-sonnet-4-5";
 const PLAN_INSTRUCTIONS = {
   free: "Give one focused topic explanation. Use simple words, one relatable analogy, and short sentences. Do not provide a study plan, multiple topics, source comparison, or homework solutions.",
   day: "Give complete Student Guide and Academic support: explain concepts clearly, show the approach to a problem, offer practice questions, identify the skill to improve, and use memorable analogies. Never invent citations or URLs.",
-  student: "Give the complete Student Guide response: clear explanation, useful examples, practical next study steps, and a supportive tone.",
-  academic: "Give the complete Academic Plus response. Explain concepts, show a problem-solving approach, offer practice questions, identify the skill to improve, and use memorable analogies. Use clearly labelled sections: Definitions, Rules, Examples, Analogy, Practice, Skill to build, and Further reading. Never invent citations or URLs."
+  plus: "Give StudentSpark Plus support: clear study guidance, assignment planning, a short practice set when useful, and trusted further-reading suggestions. Do not use analogy-heavy academic explanation mode.",
+  pro: "Give StudentSpark Pro support: explain concepts, show a problem-solving approach, offer practice questions, identify the skill to improve, and use memorable analogies. Use clearly labelled sections: Definitions, Rules, Examples, Analogy, Practice, Skill to build, and Further reading. Never invent citations or URLs.",
+  super: "Give StudentSpark Super support: provide source-aware academic explanations, memorable analogies, graduated easy/medium/hard practice questions with concise answers, a problem-solving approach, skill coaching, and a student-controlled My Week suggestion. Never invent citations, sources, university access, or URLs."
 };
 
 const SEXUAL_RE = /\b(sex|sexting|hookup|porn|nudes|virginity|condom|std|sti|birth control|plan b|orgasm|masturbat|threesome)\b/i;
@@ -21,8 +22,8 @@ const UPDATED_RULES = `
 UPDATED STUDENTSPARK PRODUCT RULES — these override conflicting instructions in the requested system:
 - Return ONLY the JSON structure requested by the caller. Never add markdown around it.
 - StudentSpark is warm, direct, and encouraging. When a student fears a result or asks for an expected outcome, do not predict it. State the next controllable step and add one brief honest encouragement such as "I believe you can take this one step at a time."
-- For day and academic access, academic questions may include clear explanations, an analogy, a problem-solving approach, and 2–4 practice questions. Do not complete graded work presented as a live assignment or exam. Teach the method and let the student do the final work.
-- For day and academic access, identify the primary skill being tested (for example: problem decomposition, algebraic fluency, active reading, evidence evaluation, argument building, or recall). Give one concrete drill to improve it this week. For the $3 student plan, provide guide and planning support only, without academic source mode or worked academic instruction.
+- For Pro and Super access, academic questions may include clear explanations, an analogy, a problem-solving approach, and 2–4 practice questions. For the Day Pass, provide guidance plus concise source-aware help and a short practice set, without My Week access. Do not complete graded work presented as a live assignment or exam. Teach the method and let the student do the final work.
+- For Pro and Super access, identify the primary skill being tested (for example: problem decomposition, algebraic fluency, active reading, evidence evaluation, argument building, or recall). Give one concrete drill to improve it this week. For Plus, provide guidance, planning, practice, and trusted further reading without analogy-heavy academic explanation mode.
 - For non-academic questions such as financial aid, give concrete steps for this week and cite only official sources such as the student's financial-aid office, studentaid.gov, or an applicable government agency. Do not guess a school policy, deadline, office, or outcome.
 - Never use Wikipedia, Reddit, anonymous forums, answer mills, or social posts as sources. Only name sources that are supplied in this request, official .edu/.gov pages, established academic publishers, or the approved study-resource list.
 - If the question is sexual, decline briefly: "I cannot answer sexual questions. You can ask me for other guidance or academic help." Return no resources or suggestions.
@@ -90,10 +91,10 @@ export default async function handler(req, res) {
     const cached = await findSharedAnswer(latestQuestion);
     if (cached) return res.status(200).json({ text: JSON.stringify(cached), cached: true });
   } catch (e) { console.error("shared answer cache", e.message); }
-  const sources = ["day", "academic"].includes(access.plan) ? await scholarlyReadingSuggestions(latestQuestion) : [];
+  const sources = ["day", "plus", "pro", "super"].includes(access.plan) ? await scholarlyReadingSuggestions(latestQuestion) : [];
   const sourceContext = sources.length ? `\n\nFurther-reading suggestions returned from Crossref's scholarly DOI metadata index:\n${sources.map((s, i) => `${i + 1}. ${s.title}${s.journal ? ` — ${s.journal}` : ""} (${s.url})`).join("\n")}\nUse these only as clearly labelled further reading. Do not imply you read the full papers.` : "";
   const systemWithSources = `${system}${sourceContext}`;
-  const planLimit = ["free", "day"].includes(access.plan) ? 750 : access.plan === "student" ? 1800 : 2800;
+  const planLimit = ["free", "day"].includes(access.plan) ? 750 : access.plan === "plus" ? 1200 : access.plan === "pro" ? 1800 : 2300;
   const max_tokens = Math.min(Math.max(Number(body.max_tokens) || 1200, 200), planLimit);
 
   try {
