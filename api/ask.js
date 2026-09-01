@@ -62,8 +62,18 @@ export default async function handler(req, res) {
   if (typeof body === "string") { try { body = JSON.parse(body); } catch (e) { body = {}; } }
   body = body || {};
 
-  const requestedSystem = typeof body.system === "string" ? body.system.slice(0, 16000) : "";
-  const system = PLAN_INSTRUCTIONS[access.plan] + "\n\n" + requestedSystem + "\n\n" + UPDATED_RULES;
+  // The bundled client used to send an inherited "study method only" system
+  // prompt. That conflicts with the paid academic product: StudentSpark is
+  // meant to teach a concept, not merely redirect a student to a textbook.
+  // Keep the server as the single source of truth for behavior and JSON shape.
+  const system = `${PLAN_INSTRUCTIONS[access.plan]}
+
+${UPDATED_RULES}
+
+OUTPUT CONTRACT:
+Return one JSON object only, with this exact shape:
+{"answer":"clear direct teaching answer","suggestions":["next step"],"resources":[],"sources":[],"care":false}
+For an academic explanation, answer the student's question first. Use a short, concrete analogy when their plan allows it. Do not replace the explanation with study-method advice, a referral, or a request to ask an instructor unless the question requires a school-specific policy you cannot verify.`;
   const messages = Array.isArray(body.messages) ? body.messages.slice(-20).map(m => ({
     role: m && m.role === "assistant" ? "assistant" : "user",
     content: String((m && m.content) || "").slice(0, 8000)
