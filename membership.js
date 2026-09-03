@@ -80,7 +80,10 @@
     const [supportMessage, setSupportMessage] = useState("");
     const [supportStatus, setSupportStatus] = useState("");
 
-    function isEduEmail(value) { return /^[^\\s@]+@[^\\s@]+\\.edu$/i.test(String(value || "").trim()); }
+    // A real whitespace matcher is important here.  The previous double-escaped
+    // version treated the letter "s" as invalid, rejecting valid addresses such
+    // as snb159@scarletmail.rutgers.edu.
+    function isEduEmail(value) { return /^[^\s@]+@[^\s@]+\.edu$/i.test(String(value || "").trim()); }
 
     useEffect(() => {
       fetch("/api/session", { credentials: "same-origin" })
