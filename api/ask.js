@@ -100,16 +100,18 @@ For an academic explanation, answer the student's question first. Use a short, c
     }) });
   }
   try {
-    const cached = await findSharedAnswer(latestQuestion);
-    if (cached) return res.status(200).json({ text: JSON.stringify(cached), cached: true });
-  } catch (e) { console.error("shared answer cache", e.message); }
-  try {
-    const usage = await consumePlanUsage(access.email, access.plan, latestQuestion);
+    // Count a question before serving a shared answer. Cache hits save AI
+    // credits, but must not turn a limited trial into unlimited access.
+    const usage = await consumePlanUsage(access.email, access.usagePlan || access.plan, latestQuestion);
     if (!usage.allowed) return res.status(429).json({ error: "You have reached this plan's fair-use limit. Choose an upgrade, add Study Credits, or wait for the next renewal period." });
   } catch (e) {
     console.error("usage counter", e.message);
     return res.status(503).json({ error: "StudentSpark could not verify plan access right now. Please try again shortly." });
   }
+  try {
+    const cached = await findSharedAnswer(latestQuestion);
+    if (cached) return res.status(200).json({ text: JSON.stringify(cached), cached: true });
+  } catch (e) { console.error("shared answer cache", e.message); }
   const sources = ["day", "plus", "pro", "super", "admin"].includes(access.plan) ? await scholarlyReadingSuggestions(latestQuestion) : [];
   const sourceContext = sources.length ? `\n\nFurther-reading suggestions returned from Crossref's scholarly DOI metadata index:\n${sources.map((s, i) => `${i + 1}. ${s.title}${s.journal ? ` — ${s.journal}` : ""} (${s.url})`).join("\n")}\nUse these only as clearly labelled further reading. Do not imply you read the full papers.` : "";
   const systemWithSources = `${system}${sourceContext}`;

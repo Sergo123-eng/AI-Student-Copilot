@@ -79,6 +79,9 @@
     const [billingConsent, setBillingConsent] = useState(false);
     const [supportMessage, setSupportMessage] = useState("");
     const [supportStatus, setSupportStatus] = useState("");
+    const [theme, setTheme] = useState(() => {
+      try { return localStorage.getItem("studentspark-theme") || "aurora"; } catch { return "aurora"; }
+    });
 
     // A real whitespace matcher is important here.  The previous double-escaped
     // version treated the letter "s" as invalid, rejecting valid addresses such
@@ -92,6 +95,21 @@
         .catch(() => {})
         .finally(() => setReady(true));
     }, []);
+
+    // A browser-back from Stripe restores the page from its cache. Clear the
+    // checkout spinner on pageshow so another plan can be selected right away.
+    useEffect(() => {
+      const releaseCheckout = () => setBusy(false);
+      window.addEventListener("pageshow", releaseCheckout);
+      return () => window.removeEventListener("pageshow", releaseCheckout);
+    }, []);
+
+    // Themes are purely local presentation preferences: no AI request, account
+    // data, or paid service is used to change colors.
+    useEffect(() => {
+      document.documentElement.dataset.studentsparkTheme = theme;
+      try { localStorage.setItem("studentspark-theme", theme); } catch {}
+    }, [theme]);
 
     // A Day Pass can ask questions but cannot use My Week. The original
     // bundled UI owns the navigation, so enforce this at the gate boundary
@@ -121,6 +139,7 @@
         });
         const data = await r.json();
         if (!r.ok || !data.url) throw new Error(data.error || "Checkout could not be started.");
+        setBusy(false);
         window.location.assign(data.url);
       } catch (e) {
         setError(e.message || "Checkout could not be started.");
@@ -151,6 +170,7 @@
         const r = await fetch("/api/customer-portal", { method: "POST", credentials: "same-origin" });
         const data = await r.json();
         if (!r.ok || !data.url) throw new Error(data.error || "The membership portal could not be opened.");
+        setBusy(false);
         window.location.assign(data.url);
       } catch (e) {
         setError(e.message || "The membership portal could not be opened.");
@@ -167,6 +187,7 @@
         });
         const data = await r.json();
         if (!r.ok || !data.url) throw new Error(data.error || "Study Credits could not be started.");
+        setBusy(false);
         window.location.assign(data.url);
       } catch (e) { setError(e.message || "Study Credits could not be started."); setBusy(false); }
     }
@@ -207,10 +228,16 @@
     </form>;
 
     if (!ready) return <div className="auth"><div className="auth-card"><p className="auth-p">Checking your secure access…</p></div></div>;
+    const paidMember = ['plus', 'pro', 'super'].includes(session?.plan) && !session?.promo;
+    const themePicker = <div className="ss-theme-picker" aria-label="Color theme">
+      <span>Color theme</span>
+      {[['aurora', 'Aurora'], ['ocean', 'Ocean'], ['rose', 'Rose'], ['midnight', 'Midnight']].map(([value, label]) => <button key={value} type="button" className={theme === value ? "selected" : ""} onClick={() => setTheme(value)}>{label}</button>)}
+    </div>;
     if (session) return <React.Fragment>
       {children({ name: session.name || session.email, email: session.email, plan: session.plan }, signOut)}
-      {['plus', 'pro', 'super'].includes(session.plan) && <button className="ss-manage" onClick={manageMembership} disabled={busy}>Manage or cancel membership</button>}
-      {['plus', 'pro', 'super'].includes(session.plan) && <button className="ss-credits" onClick={buyStudyCredits} disabled={busy}>Add Study Credits</button>}
+      {paidMember && <button className="ss-manage" onClick={manageMembership} disabled={busy}>Manage or cancel membership</button>}
+      {paidMember && <button className="ss-credits" onClick={buyStudyCredits} disabled={busy}>Add Study Credits</button>}
+      {themePicker}
       {supportForm}
       {error && <p className="ss-live-error">{error}</p>}
     </React.Fragment>;
@@ -275,5 +302,5 @@
     .ss-consent{display:flex;gap:9px;align-items:flex-start;max-width:650px;margin:0 auto 18px;color:var(--ink-2);font-size:12px;line-height:1.45}.ss-consent input{margin-top:3px;accent-color:var(--flame);flex:none}.ss-checkout-note{max-width:650px;margin:0 auto 18px;text-align:center;color:var(--teal);font-size:12px;font-weight:700}.ss-plans{max-width:1260px;margin:auto;display:grid;grid-template-columns:repeat(4,1fr);gap:16px;align-items:stretch}.ss-plan{background:rgba(23,31,45,.88);border:1px solid var(--line-2);border-radius:20px;padding:20px;display:flex;flex-direction:column;box-shadow:0 16px 45px rgba(0,0,0,.18)}.ss-plan-image{width:100%;aspect-ratio:1.45;object-fit:cover;object-position:center;border-radius:13px;margin:0 0 16px;background:#071534}.ss-plan.ss-student{border-color:#62c8ed;transform:translateY(-7px);background:linear-gradient(160deg,#123753,#1a2939)}.ss-plan.ss-academic_monthly{border-color:#e56bd3;background:linear-gradient(160deg,#42184d,#22253e)}.ss-plan.ss-academic{border-color:#f0bd4e;background:linear-gradient(160deg,#4d3610,#25243a)}.ss-plan h2{font-size:23px;margin:8px 0 2px}.ss-price{font-size:25px;font-weight:800;color:var(--honey);margin:0 0 5px}.ss-detail{color:var(--ink-2);font-size:13.5px;line-height:1.5;min-height:62px}.ss-plan ul{list-style:none;margin:14px 0 24px;padding:0;display:flex;flex-direction:column;gap:10px}.ss-plan li{font-size:13px;color:var(--ink-2);padding-left:22px;position:relative;line-height:1.4}.ss-plan li:before{content:'✓';position:absolute;left:0;color:var(--teal);font-weight:800}.ss-billing-actions{margin-top:auto}.ss-cta{width:100%}.ss-cta:disabled{opacity:.58;cursor:not-allowed}.ss-annual{display:block;width:100%;margin-top:8px;border:0;background:transparent;color:var(--teal);font:inherit;font-size:12px;font-weight:800;text-decoration:underline;text-underline-offset:3px}.ss-annual:hover:not(:disabled){color:var(--honey)}.ss-academic .ss-cta{background:#e69bd4}.ss-error{max-width:680px;margin:22px auto 0;padding:10px 14px;border:1px solid #9b4f69;background:#402434;color:#ffc4d6;border-radius:10px;text-align:center}.ss-live-error{position:fixed;z-index:90;right:18px;bottom:104px;max-width:340px;margin:0;padding:10px 14px;border:1px solid #9b4f69;background:#402434;color:#ffc4d6;border-radius:10px;font-size:13px}.ss-manage,.ss-credits{position:fixed;z-index:90;right:18px;border:1px solid var(--line-2);background:var(--card);color:var(--ink-2);border-radius:100px;padding:9px 14px;font:inherit;font-size:12px;font-weight:800;box-shadow:0 6px 20px rgba(0,0,0,.22)}.ss-manage{bottom:18px}.ss-credits{bottom:62px;border-color:var(--teal);color:var(--teal)}.ss-manage:hover:not(:disabled),.ss-credits:hover:not(:disabled){border-color:var(--flame);color:var(--flame-deep)}.ss-foot{max-width:620px;text-align:center;color:var(--muted);font-size:12px;line-height:1.5;margin:20px auto 0}@media(max-width:1050px){.ss-plans{grid-template-columns:repeat(2,1fr);max-width:700px}.ss-plan.ss-student{transform:none}}@media(max-width:800px){.ss-plans{grid-template-columns:1fr;max-width:480px}.ss-detail{min-height:0}}
   `;
   document.head.appendChild(style);
-  style.textContent += `.ss-compare,.ss-why{max-width:1120px;margin:32px auto 0;padding:24px;border-radius:18px;background:linear-gradient(125deg,rgba(54,69,111,.68),rgba(75,38,89,.64));border:1px solid var(--line-2)}.ss-compare h2,.ss-why h2{font-size:25px;margin:6px 0 14px}.ss-table-wrap{overflow-x:auto}.ss-compare table{width:100%;border-collapse:collapse;min-width:650px;text-align:center;font-size:13px}.ss-compare th,.ss-compare td{padding:12px 10px;border-bottom:1px solid var(--line-2)}.ss-compare thead th{color:var(--honey);font-size:12px;text-transform:uppercase;letter-spacing:.07em}.ss-compare tbody th{text-align:left;color:var(--ink-2);font-weight:650}.ss-compare td{color:var(--teal);font-size:16px;font-weight:800}.ss-compare-note{color:var(--muted);font-size:12px;line-height:1.5;margin:14px 0 0}.ss-why>div{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.ss-why p{font-size:13.5px;color:var(--ink-2);line-height:1.55}.ss-why b{color:var(--honey)}.ss-free{display:block;margin:18px auto 0;border:1px solid var(--teal);background:transparent;color:var(--teal);border-radius:999px;padding:9px 16px;font-weight:800;font-size:13px}.ss-free:hover:not(:disabled){background:rgba(68,209,184,.13)}.ss-code{max-width:760px;margin:24px auto 0;display:grid;grid-template-columns:1.05fr 1fr 1fr auto;gap:8px;align-items:center;background:rgba(23,31,45,.72);border:1px solid var(--line);padding:12px;border-radius:14px}.ss-code strong{font-size:13px}.ss-code input,.ss-support input,.ss-support textarea{min-width:0;border:1px solid var(--line-2);background:var(--card-2);color:var(--ink);border-radius:8px;padding:8px 10px;font:inherit;font-size:13px}.ss-code .ghost{padding:8px 13px}.ss-support{max-width:760px;margin:24px auto 0;display:grid;gap:8px;padding:14px;border-radius:14px;background:rgba(23,31,45,.72);border:1px solid var(--line)}.ss-support strong{font-size:15px}.ss-support span,.ss-support small{font-size:12px;color:var(--muted)}.ss-support textarea{min-height:88px;resize:vertical}.ss-support .ghost{justify-self:start}@media(max-width:800px){.ss-code{grid-template-columns:1fr}.ss-code .ghost{width:100%}.ss-why>div{grid-template-columns:1fr}.ss-compare,.ss-why{padding:18px}}`;
+  style.textContent += `.ss-compare,.ss-why{max-width:1120px;margin:32px auto 0;padding:24px;border-radius:18px;background:linear-gradient(125deg,rgba(54,69,111,.68),rgba(75,38,89,.64));border:1px solid var(--line-2)}.ss-compare h2,.ss-why h2{font-size:25px;margin:6px 0 14px}.ss-table-wrap{overflow-x:auto}.ss-compare table{width:100%;border-collapse:collapse;min-width:650px;text-align:center;font-size:13px}.ss-compare th,.ss-compare td{padding:12px 10px;border-bottom:1px solid var(--line-2)}.ss-compare thead th{color:var(--honey);font-size:12px;text-transform:uppercase;letter-spacing:.07em}.ss-compare tbody th{text-align:left;color:var(--ink-2);font-weight:650}.ss-compare td{color:var(--teal);font-size:16px;font-weight:800}.ss-compare-note{color:var(--muted);font-size:12px;line-height:1.5;margin:14px 0 0}.ss-why>div{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.ss-why p{font-size:13.5px;color:var(--ink-2);line-height:1.55}.ss-why b{color:var(--honey)}.ss-free{display:block;margin:18px auto 0;border:1px solid var(--teal);background:transparent;color:var(--teal);border-radius:999px;padding:9px 16px;font-weight:800;font-size:13px}.ss-free:hover:not(:disabled){background:rgba(68,209,184,.13)}.ss-code{max-width:760px;margin:24px auto 0;display:grid;grid-template-columns:1.05fr 1fr 1fr auto;gap:8px;align-items:center;background:rgba(23,31,45,.72);border:1px solid var(--line);padding:12px;border-radius:14px}.ss-code strong{font-size:13px}.ss-code input,.ss-support input,.ss-support textarea{min-width:0;border:1px solid var(--line-2);background:var(--card-2);color:var(--ink);border-radius:8px;padding:8px 10px;font:inherit;font-size:13px}.ss-code .ghost{padding:8px 13px}.ss-support{max-width:760px;margin:24px auto 0;display:grid;gap:8px;padding:14px;border-radius:14px;background:rgba(23,31,45,.72);border:1px solid var(--line)}.ss-support strong{font-size:15px}.ss-support span,.ss-support small{font-size:12px;color:var(--muted)}.ss-support textarea{min-height:88px;resize:vertical}.ss-support .ghost{justify-self:start}.ss-theme-picker{position:fixed;z-index:90;left:18px;bottom:18px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;max-width:390px;padding:8px 10px;border:1px solid var(--line-2);border-radius:14px;background:var(--card);box-shadow:0 6px 20px rgba(0,0,0,.22)}.ss-theme-picker span{font-size:11px;color:var(--muted);font-weight:800;margin-right:2px}.ss-theme-picker button{border:1px solid var(--line-2);background:var(--card-2);color:var(--ink-2);border-radius:999px;padding:5px 8px;font:inherit;font-size:11px;font-weight:750}.ss-theme-picker button.selected{border-color:var(--teal);color:var(--teal)}:root[data-studentspark-theme="ocean"]{--bg:#061d2c;--card:#0a2a3e;--card-2:#103a51;--line:#285a72;--line-2:#3f7895;--ink:#edfaff;--ink-2:#b9dae8;--muted:#88b4c8;--flame:#66ddeb;--flame-2:#99f0ff;--flame-deep:#c5f6ff;--teal:#71edcf;--honey:#f0d67c}:root[data-studentspark-theme="rose"]{--bg:#260d2b;--card:#35133b;--card-2:#4c1c52;--line:#783878;--line-2:#a9589f;--ink:#fff3fd;--ink-2:#f3cde9;--muted:#d0a3c7;--flame:#ff9bdc;--flame-2:#ffd0ed;--flame-deep:#fff0f9;--teal:#9bf0d2;--honey:#ffdb8a}:root[data-studentspark-theme="midnight"]{--bg:#080b17;--card:#11152a;--card-2:#1a2040;--line:#353d67;--line-2:#515d94;--ink:#f5f7ff;--ink-2:#cdd4ee;--muted:#9da8ca;--flame:#a9b7ff;--flame-2:#d0d8ff;--flame-deep:#f0f2ff;--teal:#8ce6dc;--honey:#f7d983}@media(max-width:800px){.ss-code{grid-template-columns:1fr}.ss-code .ghost{width:100%}.ss-why>div{grid-template-columns:1fr}.ss-compare,.ss-why{padding:18px}.ss-theme-picker{left:10px;bottom:10px;max-width:calc(100vw - 20px)}}`;
 })();
