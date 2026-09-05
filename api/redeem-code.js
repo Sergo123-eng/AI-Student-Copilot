@@ -19,6 +19,7 @@ export default async function handler(req, res) {
     { plan: "day", usagePlan: "day_promo", code: process.env.FREE_ACCESS_CODE },
     { plan: "plus", usagePlan: "plus_promo", code: process.env.PLUS_PROMO_CODE },
     { plan: "pro", usagePlan: "pro_promo", code: process.env.PRO_PROMO_CODE },
+    { plan: "super", usagePlan: "super_promo", code: process.env.SUPER_PROMO_CODE },
   ];
   const promoPlan = promoPlans.find(entry => entry.code && same(code, entry.code));
   if (!/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ error: "Enter a valid email address." });
