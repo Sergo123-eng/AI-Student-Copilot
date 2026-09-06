@@ -1,6 +1,7 @@
 /* StudentSpark visual choices, answer feedback, and accuracy reminder.
    This is deliberately local-only: changing a mascot does not send data or use AI. */
 (() => {
+  document.title = 'StudentSpark Copilot | Source-aware study help';
   const choices = [
     ['kind', 'Kind'], ['focused', 'Focused'], ['funny', 'Funny'], ['bold', 'Bold'],
     ['calm', 'Calm'], ['spark', 'Spark']
