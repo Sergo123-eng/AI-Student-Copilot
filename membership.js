@@ -318,6 +318,7 @@
         <button className="ghost" disabled={busy} type="submit">{busy ? "Checking…" : "Unlock access"}</button>
       </form>
       <p className="ss-foot">Payments are securely processed by Stripe. You can manage or cancel a recurring subscription from the customer portal.</p>
+      <p className="ss-legal"><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="/refunds.html">Refunds & cancellations</a></p>
       {supportForm}
     </div>;
   }
