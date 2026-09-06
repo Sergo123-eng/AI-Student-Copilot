@@ -94,7 +94,6 @@
       try { return localStorage.getItem("studentspark-prompt") || "blue"; } catch { return "blue"; }
     });
     const [styleOpen, setStyleOpen] = useState(false);
-    const [legalOpen, setLegalOpen] = useState(false);
 
     // A real whitespace matcher is important here.  The previous double-escaped
     // version treated the letter "s" as invalid, rejecting valid addresses such
@@ -265,14 +264,12 @@
         {choiceRow("My prompts", [['blue', 'Blue'], ['mint', 'Mint'], ['pink', 'Pink'], ['amber', 'Amber']], promptColor, setPromptColor)}
       </div>}
     </div>;
-    const legalDock = <div className="ss-legal-dock"><button type="button" aria-expanded={legalOpen} onClick={() => setLegalOpen(open => !open)}>Legal</button>{legalOpen && <div><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="/refunds.html">Refunds & cancellations</a></div>}</div>;
     if (session) return <React.Fragment>
       {children({ name: session.name || session.email, email: session.email, plan: session.plan }, signOut)}
       {subscriptionPlan && <button className="ss-manage" onClick={manageMembership} disabled={busy || !paidMember}>{paidMember ? "Manage or cancel membership" : "Manage or cancel membership (trial)"}</button>}
       {subscriptionPlan && !paidMember && <p className="ss-trial-cancel">Promo access ends automatically. There is no paid membership to cancel.</p>}
       {paidMember && <button className="ss-credits" onClick={buyStudyCredits} disabled={busy}>Add Study Credits</button>}
       {themePicker}
-      {legalDock}
       {supportForm}
       {error && <p className="ss-live-error">{error}</p>}
     </React.Fragment>;
