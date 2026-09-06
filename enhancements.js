@@ -107,6 +107,8 @@
     const email = native(gate.querySelector('[aria-label="Student .edu email address"]'));
     const promoEmail = native(gate.querySelector('[aria-label="Email address"]'));
     const promoCode = native(gate.querySelector('[aria-label="Promo code"]'));
+    const supportEmail = native(gate.querySelector('[aria-label="Support email"]'));
+    const supportRequest = native(gate.querySelector('[aria-label="Support request"]'));
     const consents = [...gate.querySelectorAll('.ss-consent input[type="checkbox"]')].map(native);
     const status = document.createElement('p');
     status.className = 'ss-error'; status.hidden = true;
@@ -125,17 +127,19 @@
       if (!agreed()) { message('Please read and check all three purchase acknowledgments first.'); return false; }
       return true;
     };
+    const checkoutButtons = [];
     const replaceButton = (button, handler) => {
       if (!button || button.dataset.ssNative) return;
       const copy = button.cloneNode(true);
       copy.dataset.ssNative = '1'; copy.disabled = false;
       button.replaceWith(copy);
       copy.addEventListener('click', handler);
+      return copy;
     };
     const planFor = card => card.classList.contains('ss-day') ? 'day' : card.classList.contains('ss-student') ? 'plus' : card.classList.contains('ss-academic_monthly') ? 'pro' : 'super';
     gate.querySelectorAll('.ss-plan').forEach(card => {
       const prefix = planFor(card);
-      replaceButton(card.querySelector('.ss-cta'), async () => {
+      const monthly = replaceButton(card.querySelector('.ss-cta'), async () => {
         if (!requireCheckout()) return;
         try {
           message('Opening secure Stripe checkout…');
@@ -143,6 +147,7 @@
           window.location.assign(data.url);
         } catch (error) { message(error.message || 'Checkout could not be started.'); }
       });
+      if (monthly) checkoutButtons.push({ button: monthly, plan: prefix });
       replaceButton(card.querySelector('.ss-annual'), async () => {
         if (!requireCheckout()) return;
         try {
@@ -163,6 +168,26 @@
       try { message('Unlocking your access…'); await post('/api/redeem-code', { email: promoEmail.value.trim(), code: promoCode.value.trim() }); window.location.reload(); }
       catch (error) { message(error.message || 'That promo code could not be used.'); }
     });
+    replaceButton(gate.querySelector('.ss-support button'), async () => {
+      if (!supportEmail?.value || !supportRequest?.value) { message('Enter your email and support request first.'); return; }
+      try {
+        message('Sending your support request…');
+        await post('/api/support', { email: supportEmail.value.trim(), message: supportRequest.value.trim() });
+        supportRequest.value = ''; message('Your support request was sent.');
+      } catch (error) { message(error.message || 'Your support request could not be sent.'); }
+    });
+    const refreshCheckoutLabels = () => {
+      const eligible = validEmail(email?.value) && agreed();
+      checkoutButtons.forEach(({ button, plan }) => {
+        button.textContent = eligible ? (plan === 'day' ? 'Get 24-hour access' : `Choose ${plan[0].toUpperCase()}${plan.slice(1)}`) : 'Enter .edu email + agree first';
+        button.setAttribute('aria-disabled', eligible ? 'false' : 'true');
+      });
+    };
+    [email, ...consents].filter(Boolean).forEach(control => {
+      control.addEventListener('input', refreshCheckoutLabels);
+      control.addEventListener('change', refreshCheckoutLabels);
+    });
+    refreshCheckoutLabels();
   }
 
   const style = document.createElement('style');
