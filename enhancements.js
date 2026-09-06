@@ -119,6 +119,48 @@
       .forEach(control => ['input', 'change', 'click'].forEach(type => {
         control.addEventListener(type, event => event.stopPropagation());
       }));
+    const replaceSelection = (control, text) => {
+      const start = control.selectionStart ?? control.value.length;
+      const end = control.selectionEnd ?? start;
+      control.value = control.value.slice(0, start) + text + control.value.slice(end);
+      const cursor = start + text.length;
+      control.setSelectionRange?.(cursor, cursor);
+      control.dispatchEvent(new Event('ss-native-input'));
+    };
+    // In this legacy bundle React listens at document capture phase, before a
+    // normal input listener can stop it. Handling `beforeinput` ourselves
+    // prevents the browser's controlled-input update entirely and preserves
+    // keystrokes (including mobile keyboards and paste) in the native copy.
+    [email, promoEmail, promoCode, supportEmail, supportRequest]
+      .filter(Boolean)
+      .forEach(control => {
+        control.addEventListener('beforeinput', event => {
+          const type = event.inputType || '';
+          let text = event.data;
+          if (type === 'insertFromPaste') text = event.dataTransfer?.getData('text/plain') || '';
+          if (type.startsWith('insert') && text != null) {
+            event.preventDefault(); replaceSelection(control, text); return;
+          }
+          if (type === 'deleteContentBackward') {
+            event.preventDefault();
+            const start = control.selectionStart ?? control.value.length;
+            const end = control.selectionEnd ?? start;
+            if (start !== end) replaceSelection(control, '');
+            else if (start) { control.setSelectionRange?.(start - 1, start); replaceSelection(control, ''); }
+          }
+          if (type === 'deleteContentForward') {
+            event.preventDefault();
+            const start = control.selectionStart ?? control.value.length;
+            const end = control.selectionEnd ?? start;
+            if (start !== end) replaceSelection(control, '');
+            else { control.setSelectionRange?.(start, start + 1); replaceSelection(control, ''); }
+          }
+        });
+        control.addEventListener('paste', event => {
+          event.preventDefault();
+          replaceSelection(control, event.clipboardData?.getData('text/plain') || '');
+        });
+      });
     const status = document.createElement('p');
     status.className = 'ss-error'; status.hidden = true;
     gate.appendChild(status);
@@ -195,6 +237,7 @@
     [email, ...consents].filter(Boolean).forEach(control => {
       control.addEventListener('input', refreshCheckoutLabels);
       control.addEventListener('change', refreshCheckoutLabels);
+      control.addEventListener('ss-native-input', refreshCheckoutLabels);
     });
     refreshCheckoutLabels();
   }
