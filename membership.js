@@ -71,10 +71,6 @@
 
   function AuthGate({ children }) {
     const [session, setSession] = useState(null);
-    // Never block the entire page on a session lookup. Some browser privacy
-    // tools can stall that request; the gate can render immediately and will
-    // switch to the signed-in experience when the lookup completes.
-    const [ready, setReady] = useState(true);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
     const [email, setEmail] = useState("");
@@ -104,22 +100,12 @@
     function isEduEmail(value) { return /^[^\s@]+@[^\s@]+\.edu$/i.test(String(value || "").trim()); }
 
     useEffect(() => {
-      let settled = false;
-      const finish = () => {
-        if (settled) return;
-        settled = true;
-        setReady(true);
-      };
-      // A stalled network request must never leave a student trapped on the
-      // access-check screen. The API normally returns in milliseconds; this
-      // simply falls back to the sign-in/checkout screen after a short wait.
-      const fallback = window.setTimeout(finish, 5000);
+      let cancelled = false;
       fetch("/api/session", { credentials: "same-origin" })
         .then(r => r.ok ? r.json() : null)
-        .then(data => { if (data && data.active) setSession(data); })
+        .then(data => { if (!cancelled && data && data.active) setSession(data); })
         .catch(() => {})
-        .finally(finish);
-      return () => window.clearTimeout(fallback);
+      return () => { cancelled = true; };
     }, []);
 
     // A browser-back from Stripe restores the page from its cache. Clear the
@@ -192,7 +178,10 @@
         const r = await fetch("/api/free-trial", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: email.trim() }) });
         const data = await r.json();
         if (!r.ok || !data.active) throw new Error(data.error || "The free trial could not be started.");
-        setSession(data);
+        // The server has now written the signed access cookie. Reloading from
+        // that cookie is more reliable than trying to swap the legacy app in
+        // place, especially after a mobile browser restores a cached page.
+        window.location.reload();
       } catch (e) { setError(e.message || "The free trial could not be started."); }
       finally { setBusy(false); }
     }
@@ -241,7 +230,9 @@
         });
         const data = await r.json();
         if (!r.ok || !data.active) throw new Error(data.error || "That code could not be used.");
-        setSession(data);
+        // Promo redemption also writes the signed access cookie. Use a clean
+        // page load so the legacy chat shell receives that session reliably.
+        window.location.reload();
       } catch (e) { setError(e.message || "That code could not be used."); }
       finally { setBusy(false); }
     }
@@ -265,7 +256,6 @@
       <button className="ghost" type="submit">Send support request</button>{supportStatus && <small>{supportStatus}</small>}
     </form>;
 
-    if (!ready) return <div className="auth"><div className="auth-card"><p className="auth-p">Checking your secure access…</p></div></div>;
     const subscriptionPlan = ['plus', 'pro', 'super'].includes(session?.plan);
     const paidMember = subscriptionPlan && !session?.promo;
     const choiceRow = (label, choices, selected, setSelected) => <div className="ss-theme-row"><span>{label}</span>{choices.map(([value, title]) => <button key={value} type="button" className={selected === value ? "selected" : ""} onClick={() => setSelected(value)}>{title}</button>)}</div>;
