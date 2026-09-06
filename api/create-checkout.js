@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import { readAccess } from "../lib/access.js";
+import { jsonPost, rateLimit } from "../lib/request-security.js";
 
 const PLANS = {
   day: ["STRIPE_PRICE_DAY_PASS", "payment"],
@@ -13,7 +14,7 @@ const PLANS = {
 };
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
+  if (!jsonPost(req, res) || !rateLimit(req, res, { name: "checkout", limit: 8, windowMs: 10 * 60 * 1000 })) return;
   const plan = req.body?.plan;
   const email = String(req.body?.email || "").trim().toLowerCase();
   const config = PLANS[plan];

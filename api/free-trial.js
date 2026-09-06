@@ -1,8 +1,9 @@
 import { issueAccess } from "../lib/access.js";
 import { hasUsedFreeTrial, recordMembership } from "../lib/student-store.js";
+import { jsonPost, rateLimit } from "../lib/request-security.js";
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
+  if (!jsonPost(req, res) || !rateLimit(req, res, { name: "trial", limit: 4, windowMs: 24 * 60 * 60 * 1000 })) return;
   const email = String(req.body?.email || "").trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.edu$/i.test(email)) return res.status(403).json({ error: "A valid .edu student email address is required." });
   try {

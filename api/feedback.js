@@ -1,5 +1,6 @@
 import { readAccess } from "../lib/access.js";
 import { saveSupportRequest } from "../lib/student-store.js";
+import { jsonPost } from "../lib/request-security.js";
 
 const attempts = new Map();
 function allowed(ip) {
@@ -10,7 +11,7 @@ function allowed(ip) {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
+  if (!jsonPost(req, res)) return;
   const access = readAccess(req);
   if (!access?.email) return res.status(401).json({ error: "Sign in before sending feedback." });
   const ip = String(req.headers["x-forwarded-for"] || "unknown").split(",")[0].trim();

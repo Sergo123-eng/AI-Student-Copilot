@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { issueAccess } from "../lib/access.js";
 import { ensureStudent } from "../lib/student-store.js";
+import { jsonPost, rateLimit } from "../lib/request-security.js";
 
 function same(a, b) {
   const left = Buffer.from(String(a || "").trim().toLowerCase());
@@ -9,7 +10,7 @@ function same(a, b) {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
+  if (!jsonPost(req, res) || !rateLimit(req, res, { name: "promo", limit: 8, windowMs: 15 * 60 * 1000 })) return;
   const email = String(req.body?.email || "").trim().toLowerCase();
   const code = String(req.body?.code || "").trim();
   const isAdmin = process.env.ADMIN_EMAIL && process.env.ADMIN_ACCESS_CODE && same(email, process.env.ADMIN_EMAIL) && same(code, process.env.ADMIN_ACCESS_CODE);

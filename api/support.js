@@ -1,4 +1,5 @@
 import { saveSupportRequest } from "../lib/student-store.js";
+import { jsonPost } from "../lib/request-security.js";
 
 const attempts = new Map();
 function allowed(ip) {
@@ -9,7 +10,7 @@ function allowed(ip) {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
+  if (!jsonPost(req, res)) return;
   const ip = String(req.headers["x-forwarded-for"] || "unknown").split(",")[0].trim();
   if (!allowed(ip)) return res.status(429).json({ error: "Please wait before sending another support request." });
   const email = String(req.body?.email || "").trim().toLowerCase();

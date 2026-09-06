@@ -3,6 +3,7 @@
    Netlify: move to netlify/functions/ask.js and use the exports.handler version in README. */
 
 import { readAccess } from "../lib/access.js";
+import { jsonPost, rateLimit } from "../lib/request-security.js";
 import { scholarlyReadingSuggestions } from "../lib/trusted-sources.js";
 import { findCampusCounselingOffice } from "../lib/campus-search.js";
 import { ensureStudent, findSharedAnswer, saveSharedAnswer, consumePlanUsage } from "../lib/student-store.js";
@@ -52,7 +53,7 @@ function institutionFrom(question) {
 
 export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(204).end();
-  if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
+  if (!jsonPost(req, res) || !rateLimit(req, res, { name: "ask", limit: 30, windowMs: 60 * 1000 })) return;
 
   const access = readAccess(req);
   if (access?.plan === "academic") access.plan = "admin"; // migrate the original owner-code session safely.
