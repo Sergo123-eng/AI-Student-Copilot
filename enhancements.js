@@ -100,6 +100,15 @@
         copy.removeAttribute('checked');
       } else {
         copy.value = element.value || '';
+        // The legacy React bundle only reclaims `type=email` controls. Keep
+        // the familiar email keyboard/autofill hints but validate .edu on the
+        // server and in `validEmail` rather than through that broken path.
+        if (copy.type === 'email') {
+          copy.type = 'text';
+          copy.inputMode = 'email';
+          copy.autocomplete = 'email';
+          copy.spellcheck = false;
+        }
       }
       element.replaceWith(copy);
       return copy;
