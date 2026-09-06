@@ -339,6 +339,17 @@ document.addEventListener('DOMContentLoaded', async function() {
             'function resHref(r) {\n  const query =',
             'function resHref(r) {\n  if (r.url) return r.url;\n  const query ='
           );
+          // The old bundle named new chats using an extra AI request before it
+          // answered the actual question. A local title is faster and cheaper.
+          source = source.replace(
+            'if (first) autoName(q, chatId);',
+            'if (first) setChats(cs => cs.map(c => c.id === chatId && !c.name ? { ...c, name: q.replace(/\\s+/g, " ").trim().slice(0, 40) } : c));'
+          );
+          // Show a helpful server-side error instead of masking every failure.
+          source = source.replace(
+            'answer: "I couldn\'t reach my sources just now. Try asking again in a moment."',
+            'answer: (e && e.message) ? e.message : "StudentSpark could not answer right now. Please try again in a moment."'
+          );
           finalBytes = new TextEncoder().encode(source);
         }
 
@@ -465,6 +476,23 @@ document.addEventListener('DOMContentLoaded', async function() {
   }
 });
 
+  </script>
+
+  <script>
+  /* Install the production bridge before the legacy bundle is evaluated. */
+  window.claude = {
+    complete: async function(opts) {
+      var r = await fetch('/api/ask', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(opts || {})
+      });
+      var j = await r.json().catch(function(){ return {}; });
+      if (!r.ok || j.error) {
+        throw new Error(j.error || 'StudentSpark could not answer right now. Please try again in a moment.');
+      }
+      return j.text || '';
+    }
+  };
   </script>
 
   <script type="__bundler/manifest">
