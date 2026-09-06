@@ -153,6 +153,15 @@ document.addEventListener('DOMContentLoaded', async function() {
       console.error('Could not load StudentSpark membership gate:', membershipError);
       throw membershipError;
     }
+    let enhancementsSource = '';
+    try {
+      const enhancementsResponse = await fetch('/enhancements.js', { cache: 'no-store' });
+      if (enhancementsResponse.ok) enhancementsSource = await enhancementsResponse.text();
+    } catch (enhancementsError) {
+      // The study app remains usable if optional local presentation helpers
+      // are temporarily unavailable.
+      console.warn('Could not load StudentSpark enhancements:', enhancementsError);
+    }
     const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
     const pendingFrames = {}; // uuid -> [{el, frag}] awaiting text for own frames
     const pendingRelays = {}; // uuid -> [childWindow] awaiting text to pass down
@@ -296,6 +305,29 @@ document.addEventListener('DOMContentLoaded', async function() {
           );
           source = source.replace('Online classes</h3><span>No set meeting time — pick a length, I will find the slot</span>', 'Online classes</h3><span>Name, days, start and end</span>');
           source = source.replace('Things you want to fit in, but do not know when</h3><span>I will pick a time with no overlap</span>', 'Other tasks and commitments</h3><span>Name, days, start and end</span>');
+          // Quick calendar controls: students can select every day at once,
+          // and an asynchronous class can be kept off-grid while still
+          // producing an on-page planning reminder.
+          source = source.replace(
+            'function EntryRow({ e, onChange, onRemove, placeholder }) {',
+            'function EntryRow({ e, onChange, onRemove, placeholder, allowUnscheduled = false }) {'
+          );
+          source = source.replace(
+            '</div>\n      <input className="e-time" value={e.start}',
+            '</div>\n      <div className="e-day-actions"><button type="button" className="e-day all" onClick={() => onChange({ ...e, days: DP.DAYS.slice() })}>All week</button>{allowUnscheduled && <button type="button" className="e-day none" onClick={() => onChange({ ...e, days: [] })}>No day scheduled</button>}</div>\n      <input className="e-time" value={e.start}'
+          );
+          source = source.replace(
+            '{online.map(e => <EntryRow key={e.id} e={e} placeholder="e.g. Intro to Sociology (async)"',
+            '{online.map(e => <EntryRow key={e.id} e={e} allowUnscheduled placeholder="e.g. Intro to Sociology (async)"'
+          );
+          source = source.replace(
+            'const cb = toBlocks([...classes, ...online], "class"), ub = toBlocks(clubs, "club"), lb = toBlocks([...life, ...unsure], "other");',
+            'const unscheduledOnline = online.filter(e => noStars(e.name) && !(e.days || []).length);\n    const cb = toBlocks([...classes, ...online], "class"), ub = toBlocks(clubs, "club"), lb = toBlocks([...life, ...unsure], "other");'
+          );
+          source = source.replace(
+            'setWhy("Only what you entered is on the grid. Nothing is added for you — pick an idea on the right and set the day and time yourself.");',
+            'setWhy("Only what you entered is on the grid. Nothing is added for you — pick an idea on the right and set the day and time yourself." + (unscheduledOnline.length ? " Online classes without a set meeting time can quietly fall behind. Reserve a repeating study block for " + unscheduledOnline.map(e => noStars(e.name)).join(", ") + " this week, then adjust it when your workload changes." : ""));'
+          );
           finalBytes = new TextEncoder().encode(source);
         }
         if (uuid === 'd3f69ec9-36ea-4eaa-9a07-957db160bea8') {
@@ -358,6 +390,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     const resourceScript = '<script>window.__resources = ' +
       JSON.stringify(resourceMap).replace(/<\//g, '<\\/') +
       ';</' + 'script>';
+    const enhancementsScript = enhancementsSource
+      ? '<script>' + enhancementsSource.replace(/<\/script/gi, '<\\/script') + '</' + 'script>'
+      : '';
     // Inject after <head> so the DOCTYPE stays first; prepending the script
     // would push the parser into quirks mode. DOMParser always emits a <head>
     // (synthesizing one if the source HTML omitted it) but may carry
@@ -366,7 +401,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     const headOpen = template.match(/<head[^>]*>/i);
     if (headOpen) {
       const i = headOpen.index + headOpen[0].length;
-      template = template.slice(0, i) + resourceScript + template.slice(i);
+      template = template.slice(0, i) + resourceScript + enhancementsScript + template.slice(i);
     }
 
     // Parse the template and swap the root element. Scripts inserted via
