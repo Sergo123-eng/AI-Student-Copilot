@@ -155,7 +155,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     let enhancementsSource = '';
     try {
-      const enhancementsResponse = await fetch('/enhancements.js', { cache: 'no-store' });
+      // Version this small compatibility layer so a browser that cached an
+      // earlier gate repair always receives the current interaction fix.
+      const enhancementsResponse = await fetch('/enhancements.js?v=79b119a', { cache: 'no-store' });
       if (enhancementsResponse.ok) enhancementsSource = await enhancementsResponse.text();
     } catch (enhancementsError) {
       // The study app remains usable if optional local presentation helpers
