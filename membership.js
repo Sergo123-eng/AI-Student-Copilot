@@ -101,11 +101,22 @@
     function isEduEmail(value) { return /^[^\s@]+@[^\s@]+\.edu$/i.test(String(value || "").trim()); }
 
     useEffect(() => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        setReady(true);
+      };
+      // A stalled network request must never leave a student trapped on the
+      // access-check screen. The API normally returns in milliseconds; this
+      // simply falls back to the sign-in/checkout screen after a short wait.
+      const fallback = window.setTimeout(finish, 5000);
       fetch("/api/session", { credentials: "same-origin" })
         .then(r => r.ok ? r.json() : null)
         .then(data => { if (data && data.active) setSession(data); })
         .catch(() => {})
-        .finally(() => setReady(true));
+        .finally(finish);
+      return () => window.clearTimeout(fallback);
     }, []);
 
     // A browser-back from Stripe restores the page from its cache. Clear the
