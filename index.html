@@ -153,17 +153,6 @@ document.addEventListener('DOMContentLoaded', async function() {
       console.error('Could not load StudentSpark membership gate:', membershipError);
       throw membershipError;
     }
-    let enhancementsSource = '';
-    try {
-      // Version this small compatibility layer so a browser that cached an
-      // earlier gate repair always receives the current interaction fix.
-      const enhancementsResponse = await fetch('/enhancements.js?v=public-gate-4', { cache: 'no-store' });
-      if (enhancementsResponse.ok) enhancementsSource = await enhancementsResponse.text();
-    } catch (enhancementsError) {
-      // The study app remains usable if optional local presentation helpers
-      // are temporarily unavailable.
-      console.warn('Could not load StudentSpark enhancements:', enhancementsError);
-    }
     const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
     const pendingFrames = {}; // uuid -> [{el, frag}] awaiting text for own frames
     const pendingRelays = {}; // uuid -> [childWindow] awaiting text to pass down
@@ -403,9 +392,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     const resourceScript = '<script>window.__resources = ' +
       JSON.stringify(resourceMap).replace(/<\//g, '<\\/') +
       ';</' + 'script>';
-    const enhancementsScript = enhancementsSource
-      ? '<script>' + enhancementsSource.replace(/<\/script/gi, '<\\/script') + '</' + 'script>'
-      : '';
     // Inject after <head> so the DOCTYPE stays first; prepending the script
     // would push the parser into quirks mode. DOMParser always emits a <head>
     // (synthesizing one if the source HTML omitted it) but may carry
@@ -414,7 +400,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     const headOpen = template.match(/<head[^>]*>/i);
     if (headOpen) {
       const i = headOpen.index + headOpen[0].length;
-      template = template.slice(0, i) + resourceScript + enhancementsScript + template.slice(i);
+      template = template.slice(0, i) + resourceScript + template.slice(i);
     }
 
     // Parse the template and swap the root element. Scripts inserted via
