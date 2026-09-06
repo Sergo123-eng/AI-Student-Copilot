@@ -270,6 +270,7 @@
     </form>;
 
     const subscriptionPlan = ['plus', 'pro', 'super'].includes(session?.plan);
+    const mascotEligible = subscriptionPlan || session?.plan === 'admin';
     const paidMember = subscriptionPlan && !session?.promo;
     const choiceRow = (label, choices, selected, setSelected) => <div className="ss-theme-row"><span>{label}</span>{choices.map(([value, title]) => <button key={value} type="button" className={selected === value ? "selected" : ""} onClick={() => setSelected(value)}>{title}</button>)}</div>;
     const themePicker = <div className="ss-style-dock" aria-label="Color customization">
@@ -282,7 +283,7 @@
       </div>}
     </div>;
     const mascotChoices = [['kind', 'Kind'], ['focused', 'Focused'], ['funny', 'Funny'], ['bold', 'Bold'], ['calm', 'Calm'], ['spark', 'Spark']];
-    const mascotPicker = subscriptionPlan && <div className="ss-mascot-dock">
+    const mascotPicker = mascotEligible && <div className="ss-mascot-dock">
       <button type="button" className="ss-mascot-launch" aria-label="Choose your StudentSpark mascot" aria-expanded={mascotOpen} onClick={() => setMascotOpen(open => !open)}>
         <img src={`/assets/mascots/${mascot}.png`} alt="" />
       </button>
