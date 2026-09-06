@@ -71,7 +71,10 @@
 
   function AuthGate({ children }) {
     const [session, setSession] = useState(null);
-    const [ready, setReady] = useState(false);
+    // Never block the entire page on a session lookup. Some browser privacy
+    // tools can stall that request; the gate can render immediately and will
+    // switch to the signed-in experience when the lookup completes.
+    const [ready, setReady] = useState(true);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
     const [email, setEmail] = useState("");
