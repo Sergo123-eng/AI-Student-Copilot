@@ -110,6 +110,15 @@
     const supportEmail = native(gate.querySelector('[aria-label="Support email"]'));
     const supportRequest = native(gate.querySelector('[aria-label="Support request"]'));
     const consents = [...gate.querySelectorAll('.ss-consent input[type="checkbox"]')].map(native);
+    // React's document-level event handler still sees events from cloned
+    // controls and can re-apply the old controlled value (an empty string).
+    // Keep native field events inside the native controls; their own listeners
+    // below still run, while the legacy bundle cannot reset what was typed.
+    [email, promoEmail, promoCode, supportEmail, supportRequest, ...consents]
+      .filter(Boolean)
+      .forEach(control => ['input', 'change', 'click'].forEach(type => {
+        control.addEventListener(type, event => event.stopPropagation());
+      }));
     const status = document.createElement('p');
     status.className = 'ss-error'; status.hidden = true;
     gate.appendChild(status);
