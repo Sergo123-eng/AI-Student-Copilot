@@ -221,6 +221,11 @@
 
     async function redeem(event) {
       event.preventDefault();
+      if (!isEduEmail(email)) { setError("Enter a valid .edu student email address for the promo code."); return; }
+      if (!billingConsent || !refundConsent || !privacyConsent) {
+        setError("Please read and check all three acknowledgments before redeeming a promo code.");
+        return;
+      }
       setBusy(true); setError("");
       try {
         const r = await fetch("/api/redeem-code", {
@@ -331,7 +336,7 @@
         <strong>Have a promo code?</strong>
         <input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="you@school.edu" aria-label="Email address" />
         <input required value={code} onChange={e => setCode(e.target.value)} placeholder="Enter promo code" aria-label="Promo code" />
-        <button className="ghost" disabled={busy} type="submit">{busy ? "Checking…" : "Unlock access"}</button>
+        <button className="ghost" disabled={busy || !isEduEmail(email) || !billingConsent || !refundConsent || !privacyConsent} type="submit">{busy ? "Checking…" : "Agree above to unlock"}</button>
       </form>
       <p className="ss-foot">Payments are securely processed by Stripe. You can manage or cancel a recurring subscription from the customer portal.</p>
       <p className="ss-legal"><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="/refunds.html">Refunds & cancellations</a></p>
