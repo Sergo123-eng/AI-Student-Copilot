@@ -286,6 +286,14 @@ document.addEventListener('DOMContentLoaded', async function() {
             'const cb = toBlocks(classes, "class"), ub = toBlocks(clubs, "club"), lb = toBlocks(life, "other");\n    const onlineFlex = online.filter(e => noStars(e.name)).map(e => ({ ...e, kind: "class" }));\n    const unsureFlex = unsure.filter(e => noStars(e.name)).map(e => ({ ...e, kind: "other" }));',
             'const cb = toBlocks([...classes, ...online], "class"), ub = toBlocks(clubs, "club"), lb = toBlocks([...life, ...unsure], "other");\n    const onlineFlex = [];\n    const unsureFlex = [];'
           );
+          // Building or editing a week must not spend an AI allowance. Fixed
+          // commitments, conflict checks, free-slot placement, and the idea
+          // list are all local rules. Keep the trusted fallback resources and
+          // editable recommendations, but do not call the model on rebuild.
+          source = source.replace(
+            'const [resp] = await Promise.all([\n      callResources(classNames.length ? classNames : ["your classes"], interestLabels).catch(() => null)\n    ]);\n\n    let res = null;\n    if (resp && Array.isArray(resp.resources)) res = resp.resources.filter(r => r && r.class).map(r => ({\n      ...r,\n      sites: (r.sites || []).filter(s => s && s.name),\n      youtube: (r.youtube || []).filter(s => s && s.name && okChannel(s.name))\n    }));\n\n    setResources(res && res.length ? res : fallbackResources(classNames));',
+            'setResources(fallbackResources(classNames));'
+          );
           source = source.replace('Online classes</h3><span>No set meeting time — pick a length, I will find the slot</span>', 'Online classes</h3><span>Name, days, start and end</span>');
           source = source.replace('Things you want to fit in, but do not know when</h3><span>I will pick a time with no overlap</span>', 'Other tasks and commitments</h3><span>Name, days, start and end</span>');
           finalBytes = new TextEncoder().encode(source);
