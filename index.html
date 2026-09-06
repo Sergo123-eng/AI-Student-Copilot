@@ -157,7 +157,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     try {
       // Version this small compatibility layer so a browser that cached an
       // earlier gate repair always receives the current interaction fix.
-      const enhancementsResponse = await fetch('/enhancements.js?v=2e35804', { cache: 'no-store' });
+      const enhancementsResponse = await fetch('/enhancements.js?v=plain-fields-1', { cache: 'no-store' });
       if (enhancementsResponse.ok) enhancementsSource = await enhancementsResponse.text();
     } catch (enhancementsError) {
       // The study app remains usable if optional local presentation helpers
