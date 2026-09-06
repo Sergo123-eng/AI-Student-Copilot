@@ -82,12 +82,63 @@
     });
   }
 
+  function mountStandaloneGate(gate) {
+    if (document.getElementById('ss-public-gate')) return true;
+    // This sits outside React's #root. The legacy bundle cannot receive its
+    // events, which makes the public payment gate reliable on mobile and
+    // desktop even when the original bundle is cached or partially hydrated.
+    const panel = document.createElement('main');
+    panel.id = 'ss-public-gate';
+    panel.innerHTML = `<section class="ssg-shell"><header class="ssg-head"><div class="ssg-brand"><span>✦</span><b>StudentSpark</b> Copilot</div><p>Study help that makes difficult ideas click.</p></header><section class="ssg-hero"><p class="ssg-kicker">FOR .EDU STUDENTS</p><h1>Learn with clarity.<br>Start with a plan.</h1><p>Your calm study partner for difficult classes, memorable analogies, and source-aware further reading.</p></section><section class="ssg-card"><label>Student email<input id="ssg-email" type="text" inputmode="email" autocomplete="email" spellcheck="false" placeholder="you@school.edu"></label><small>StudentSpark is available to .edu student addresses only.</small><div class="ssg-consents"><label><input type="checkbox"> I agree to the <a href="/terms.html" target="_blank">Terms of Use</a>.</label><label><input type="checkbox"> I have read the <a href="/refunds.html" target="_blank">Refund & Cancellation Policy</a>.</label><label><input type="checkbox"> I have read the <a href="/privacy.html" target="_blank">Privacy Notice</a>.</label></div><p class="ssg-status" aria-live="polite"></p></section><section class="ssg-plans"><article><b>DAY PASS</b><h2>$1.99 <small>/ 24 hours</small></h2><p>Focused study guidance, trusted-source suggestions, and a short practice set.</p><button data-plan="day">Get 24-hour access</button></article><article class="hot"><b>PLUS</b><h2>$5 <small>/ month</small></h2><p>Study guidance, My Week planning, practice questions, and trusted reading suggestions.</p><button data-plan="plus_monthly">Choose Plus</button><button class="ssg-link" data-plan="plus_annual">$50 / year — 2 months free</button></article><article><b>PRO</b><h2>$7.99 <small>/ month</small></h2><p>More academic depth with explanations, analogies, practice, and sources.</p><button data-plan="pro_monthly">Choose Pro</button><button class="ssg-link" data-plan="pro_annual">$79.90 / year — 2 months free</button></article><article><b>SUPER</b><h2>$15 <small>/ month</small></h2><p>Complete support with sources, analogies, practice, My Week, and opt-in reminders.</p><button data-plan="super_monthly">Choose Super</button><button class="ssg-link" data-plan="super_annual">$150 / year — 2 months free</button></article></section><section class="ssg-more"><button id="ssg-trial">Try StudentSpark free for 3 days — no card needed</button><form id="ssg-promo"><b>Have a promo code?</b><input id="ssg-promo-email" type="text" inputmode="email" autocomplete="email" placeholder="Student .edu email"><input id="ssg-code" placeholder="Promo code"><button>Unlock access</button></form><form id="ssg-support"><b>Need support?</b><input id="ssg-support-email" type="text" inputmode="email" autocomplete="email" placeholder="Your email"><textarea id="ssg-support-message" placeholder="Tell the StudentSpark team how we can help."></textarea><button>Send support request</button></form><p>Payments are securely processed by Stripe. Recurring subscriptions can be managed or canceled in Stripe's customer portal.</p></section></section>`;
+    document.body.appendChild(panel);
+    gate.style.display = 'none';
+    const $ = selector => panel.querySelector(selector);
+    const email = $('#ssg-email');
+    const status = $('.ssg-status');
+    const validEmail = value => /^[^\s@]+@[^\s@]+\.edu$/i.test((value || '').trim());
+    const agreed = () => [...panel.querySelectorAll('.ssg-consents input')].every(box => box.checked);
+    const say = text => { status.textContent = text || ''; };
+    const post = async (path, body) => {
+      const response = await fetch(path, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'StudentSpark could not complete that request.');
+      return data;
+    };
+    const checkout = async plan => {
+      if (!validEmail(email.value)) return say('Enter a valid .edu student email address.');
+      if (!agreed()) return say('Please read and check all three purchase acknowledgments first.');
+      try { say('Opening secure Stripe checkout…'); const data = await post('/api/create-checkout', { plan, email: email.value.trim() }); location.assign(data.url); }
+      catch (error) { say(error.message || 'Checkout could not be started.'); }
+    };
+    panel.querySelectorAll('[data-plan]').forEach(button => button.addEventListener('click', () => checkout(button.dataset.plan)));
+    $('#ssg-trial').addEventListener('click', async () => {
+      if (!validEmail(email.value)) return say('Enter a valid .edu student email address to start the free trial.');
+      try { say('Starting your trial…'); await post('/api/free-trial', { email: email.value.trim() }); location.reload(); }
+      catch (error) { say(error.message || 'The free trial could not be started.'); }
+    });
+    $('#ssg-promo').addEventListener('submit', async event => {
+      event.preventDefault(); const promoEmail = $('#ssg-promo-email').value.trim(); const code = $('#ssg-code').value.trim();
+      if (!validEmail(promoEmail)) return say('Enter a valid .edu student email address for the promo code.');
+      if (!code) return say('Enter your promo code.');
+      try { say('Unlocking your access…'); await post('/api/redeem-code', { email: promoEmail, code }); location.reload(); }
+      catch (error) { say(error.message || 'That promo code could not be used.'); }
+    });
+    $('#ssg-support').addEventListener('submit', async event => {
+      event.preventDefault(); const supportEmail = $('#ssg-support-email').value.trim(); const message = $('#ssg-support-message').value.trim();
+      if (!supportEmail || !message) return say('Enter your email and support request first.');
+      try { say('Sending your support request…'); await post('/api/support', { email: supportEmail, message }); $('#ssg-support-message').value = ''; say('Your support request was sent.'); }
+      catch (error) { say(error.message || 'Your support request could not be sent.'); }
+    });
+    return true;
+  }
+
   // The original app is a legacy browser bundle. On a few browsers it can
   // paint React-controlled fields without delivering their change events.
   // Replace only the public gate controls with native equivalents so typing,
   // consent boxes, checkout, free trials, and promo redemption remain usable.
   function repairGateControls() {
     const gate = document.querySelector('.ss-gate');
+    if (gate && mountStandaloneGate(gate)) return;
     if (!gate || gate.dataset.ssGateReady) return;
     gate.dataset.ssGateReady = '1';
 
@@ -257,6 +308,9 @@
   const mascotGridStyle = document.createElement('style');
   mascotGridStyle.textContent = '.ss-mascot-options{grid-template-columns:repeat(3,1fr)}';
   document.head.appendChild(mascotGridStyle);
+  const publicGateStyle = document.createElement('style');
+  publicGateStyle.textContent = `#ss-public-gate{position:fixed;inset:0;z-index:999999;overflow:auto;background:radial-gradient(circle at 20% 0,#394a75 0,#1d2638 42%,#111827 100%);color:#eef4ff;font:15px/1.5 Outfit,ui-sans-serif,system-ui,sans-serif}#ss-public-gate *{box-sizing:border-box}#ss-public-gate .ssg-shell{width:min(1120px,100%);margin:auto;padding:22px 22px 50px}#ss-public-gate .ssg-head{display:flex;justify-content:space-between;align-items:center;color:#b9c6dc;font-size:13px}#ss-public-gate .ssg-head p{margin:0}.ssg-brand{font-size:18px}.ssg-brand span{display:inline-grid;place-items:center;width:27px;height:27px;border-radius:9px;background:#78a6ff;color:#101a2b;margin-right:6px}.ssg-hero{text-align:center;max-width:680px;margin:34px auto 22px}.ssg-kicker{font-size:11px;font-weight:800;letter-spacing:.15em;color:#9fc1ff}.ssg-hero h1{font-size:clamp(34px,6vw,59px);line-height:1.03;letter-spacing:-.05em;margin:8px 0 13px}.ssg-hero>p:last-child{color:#c6d2e7;font-size:17px}.ssg-card,.ssg-plans article,.ssg-more{background:rgba(35,48,72,.92);border:1px solid #526686;border-radius:16px;box-shadow:0 14px 30px rgba(0,0,0,.2)}.ssg-card{max-width:720px;margin:0 auto 18px;padding:18px}.ssg-card>label{display:grid;gap:6px;font-weight:700}.ssg-card input,.ssg-more input,.ssg-more textarea{width:100%;border:1px solid #5c7093;background:#162136;color:#f5f8ff;border-radius:9px;padding:11px;font:inherit;outline:none}.ssg-card input:focus,.ssg-more input:focus,.ssg-more textarea:focus{border-color:#91b7ff;box-shadow:0 0 0 3px #75a8ff33}.ssg-card small{display:block;color:#aebbd1;margin-top:5px}.ssg-consents{display:grid;gap:7px;margin-top:15px;color:#d8e2f1;font-size:13px}.ssg-consents label{display:flex;gap:8px;align-items:flex-start}.ssg-consents input{width:auto;margin-top:3px}.ssg-consents a{color:#a7c5ff}.ssg-status{min-height:23px;color:#ffd1db;font-weight:650;margin:12px 0 0}.ssg-plans{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.ssg-plans article{padding:17px;display:flex;flex-direction:column}.ssg-plans article.hot{border-color:#88adff;background:linear-gradient(155deg,#2a3f68,#25344e)}.ssg-plans b{font-size:11px;letter-spacing:.12em;color:#9dc0ff}.ssg-plans h2{font-size:26px;margin:8px 0 4px}.ssg-plans h2 small{font-size:13px;color:#b8c6db}.ssg-plans p{color:#c3d0e3;font-size:13px;flex:1}.ssg-plans button,.ssg-more button{border:0;border-radius:9px;background:#8db4ff;color:#12203a;font:700 13px inherit;padding:10px;cursor:pointer;margin-top:9px}.ssg-plans button:hover,.ssg-more button:hover{filter:brightness(1.08)}.ssg-plans .ssg-link{background:transparent;color:#b8d0ff;border:1px solid #566b90;padding:8px}.ssg-more{margin-top:18px;padding:18px;display:grid;grid-template-columns:1fr 1fr;gap:15px}.ssg-more form{display:grid;gap:8px}.ssg-more textarea{min-height:90px;resize:vertical}.ssg-more>p{grid-column:1/-1;color:#aebbd1;margin:0;font-size:12px}.ssg-more>#ssg-trial{grid-column:1/-1;background:#67d1b5}@media(max-width:800px){.ssg-plans{grid-template-columns:1fr 1fr}}@media(max-width:570px){#ss-public-gate .ssg-shell{padding:14px 12px 35px}.ssg-head p{display:none}.ssg-hero{margin:24px auto 16px}.ssg-hero>p:last-child{font-size:15px}.ssg-card{padding:14px}.ssg-plans,.ssg-more{grid-template-columns:1fr}.ssg-more>#ssg-trial,.ssg-more>p{grid-column:auto}}`;
+  document.head.appendChild(publicGateStyle);
   const update = () => { addMascotControl(); decorate(); addAccuracyNote(); addFeedback(); repairGateControls(); };
   new MutationObserver(update).observe(document.documentElement, { childList: true, subtree: true });
   document.addEventListener('DOMContentLoaded', update);
