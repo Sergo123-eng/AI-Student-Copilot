@@ -78,9 +78,11 @@ OUTPUT CONTRACT:
 Return one JSON object only, with this exact shape:
 {"answer":"clear direct teaching answer","suggestions":["next step"],"resources":[],"sources":[],"care":false}
 For an academic explanation, answer the student's question first. Use a short, concrete analogy when their plan allows it. Do not replace the explanation with study-method advice, a referral, or a request to ask an instructor unless the question requires a school-specific policy you cannot verify.`;
-  const messages = Array.isArray(body.messages) ? body.messages.slice(-20).map(m => ({
+  // Keep the useful immediate context without repeatedly sending an entire
+  // long chat transcript to the model on every turn.
+  const messages = Array.isArray(body.messages) ? body.messages.slice(-8).map(m => ({
     role: m && m.role === "assistant" ? "assistant" : "user",
-    content: String((m && m.content) || "").slice(0, 8000)
+    content: String((m && m.content) || "").slice(0, 4000)
   })) : [];
   if (!messages.length) return res.status(400).json({ error: "No messages" });
   const latestQuestion = [...messages].reverse().find(m => m.role === "user")?.content || "";
@@ -115,11 +117,17 @@ For an academic explanation, answer the student's question first. Use a short, c
     console.error("usage counter", e.message);
     return res.status(503).json({ error: "StudentSpark could not verify plan access right now. Please try again shortly." });
   }
-  const sources = ["day", "plus", "pro", "super", "admin"].includes(access.plan) ? await scholarlyReadingSuggestions(latestQuestion) : [];
-  const sourceContext = sources.length ? `\n\nFurther-reading suggestions returned from Crossref's scholarly DOI metadata index:\n${sources.map((s, i) => `${i + 1}. ${s.title}${s.journal ? ` — ${s.journal}` : ""} (${s.url})`).join("\n")}\nUse these only as clearly labelled further reading. Do not imply you read the full papers.` : "";
-  const systemWithSources = `${system}${sourceContext}`;
-  const planLimit = ["free", "day"].includes(access.plan) ? 750 : access.plan === "plus" ? 1200 : access.plan === "pro" ? 1800 : 2300;
-  const max_tokens = Math.min(Math.max(Number(body.max_tokens) || 1200, 200), planLimit);
+  // Scholarly metadata is useful, but it must never sit in front of the AI
+  // request. Start it concurrently and attach results when they are ready.
+  const sourcePromise = ["day", "plus", "pro", "super", "admin"].includes(access.plan)
+    ? scholarlyReadingSuggestions(latestQuestion).catch(() => [])
+    : Promise.resolve([]);
+  const sourcesReady = Promise.race([
+    sourcePromise,
+    new Promise(resolve => setTimeout(() => resolve([]), 1200))
+  ]);
+  const planLimit = ["free", "day"].includes(access.plan) ? 600 : access.plan === "plus" ? 800 : access.plan === "pro" ? 1100 : 1300;
+  const max_tokens = Math.min(Math.max(Number(body.max_tokens) || 800, 200), planLimit);
 
   try {
     const r = await fetch("https://api.anthropic.com/v1/messages", {
@@ -130,7 +138,7 @@ For an academic explanation, answer the student's question first. Use a short, c
       body: JSON.stringify({
         model: ALLOWED_MODEL,
         max_tokens,
-        system: systemWithSources,
+        system,
         messages,
         cache_control: { type: "ephemeral" }
       })
@@ -145,6 +153,7 @@ For an academic explanation, answer the student's question first. Use a short, c
       return res.status(502).json({ error: "The AI service could not respond right now. Please try again shortly." });
     }
     const text = (j.content || []).map(c => (c && c.text) || "").join("");
+    const sources = await sourcesReady;
     let output = text;
     if (sources.length) {
       try {
