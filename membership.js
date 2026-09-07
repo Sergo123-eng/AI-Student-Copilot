@@ -167,7 +167,7 @@
         const r = await fetch("/api/create-checkout", {
           method: "POST", credentials: "same-origin",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ plan, email: email.trim() })
+          body: JSON.stringify({ plan, email: email.trim(), acknowledgmentsAccepted: true })
         });
         const data = await r.json();
         if (!r.ok || !data.url) throw new Error(data.error || "Checkout could not be started.");
@@ -181,9 +181,13 @@
 
     async function startFreeTrial() {
       if (!isEduEmail(email)) { setError("Use a valid .edu student email address to start the free trial."); return; }
+      if (!(billingConsent && refundConsent && privacyConsent)) {
+        setError("Please read and check all three required billing, refund, and privacy acknowledgments before starting StudentSpark.");
+        return;
+      }
       setBusy(true); setError("");
       try {
-        const r = await fetch("/api/free-trial", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: email.trim() }) });
+        const r = await fetch("/api/free-trial", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: email.trim(), acknowledgmentsAccepted: true }) });
         const data = await r.json();
         if (!r.ok || !data.active) throw new Error(data.error || "The free trial could not be started.");
         // The server has now written the signed access cookie. Reloading from
@@ -239,7 +243,7 @@
         const r = await fetch("/api/redeem-code", {
           method: "POST", credentials: "same-origin",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, code })
+          body: JSON.stringify({ email, code, acknowledgmentsAccepted: true })
         });
         const data = await r.json();
         if (!r.ok || !data.active) throw new Error(data.error || "That code could not be used.");
@@ -350,7 +354,7 @@
           <p><b>Honest boundaries.</b> No made-up campus policies, no sexual-content answers, and mental-health questions are handed to real support.</p>
         </div>
       </section>
-      <button className="ss-free" disabled={busy} onClick={startFreeTrial}>Try StudentSpark free for 3 days — no card needed</button>
+      <button className="ss-free" disabled={busy || !isEduEmail(email) || !billingConsent || !refundConsent || !privacyConsent} onClick={startFreeTrial}>Try StudentSpark free for 3 days — no card needed</button>
       {error && <p className="ss-error">{error}</p>}
       <form className="ss-code" onSubmit={redeem}>
         <strong>Have a promo code?</strong>

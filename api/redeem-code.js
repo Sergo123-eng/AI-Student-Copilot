@@ -25,6 +25,7 @@ export default async function handler(req, res) {
   const promoPlan = promoPlans.find(entry => entry.code && same(code, entry.code));
   if (!/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ error: "Enter a valid email address." });
   if (!isAdmin && !/^[^\s@]+@[^\s@]+\.edu$/i.test(email)) return res.status(403).json({ error: "Promo access is available to .edu student email addresses only." });
+  if (!isAdmin && req.body?.acknowledgmentsAccepted !== true) return res.status(400).json({ error: "You must accept the Terms, Refund & Cancellation Policy, and Privacy Notice before using a promo code." });
   if (!isAdmin && !promoPlan) return res.status(403).json({ error: "That promo code is not valid." });
 
   // Codes are explicitly mapped to their plan; the admin code remains full

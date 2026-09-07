@@ -6,6 +6,7 @@ export default async function handler(req, res) {
   if (!jsonPost(req, res) || !rateLimit(req, res, { name: "trial", limit: 4, windowMs: 24 * 60 * 60 * 1000 })) return;
   const email = String(req.body?.email || "").trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.edu$/i.test(email)) return res.status(403).json({ error: "A valid .edu student email address is required." });
+  if (req.body?.acknowledgmentsAccepted !== true) return res.status(400).json({ error: "You must accept the Terms, Refund & Cancellation Policy, and Privacy Notice before starting StudentSpark." });
   try {
     if (await hasUsedFreeTrial(email)) return res.status(409).json({ error: "This student email has already used its free trial. Choose a plan to continue." });
     await recordMembership({

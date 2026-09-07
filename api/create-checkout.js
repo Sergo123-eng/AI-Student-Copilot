@@ -20,6 +20,7 @@ export default async function handler(req, res) {
   const config = PLANS[plan];
   const price = config && process.env[config[0]];
   if (!/^[^\s@]+@[^\s@]+\.edu$/i.test(email)) return res.status(403).json({ error: "A valid .edu student email address is required." });
+  if (plan !== "study_credits" && req.body?.acknowledgmentsAccepted !== true) return res.status(400).json({ error: "You must accept the Terms, Refund & Cancellation Policy, and Privacy Notice before checkout." });
   const access = readAccess(req);
   if (plan === "study_credits" && (!access || access.email !== email || !["plus", "pro", "super"].includes(access.plan))) {
     return res.status(403).json({ error: "Study Credits are available to active Plus, Pro, or Super members." });
