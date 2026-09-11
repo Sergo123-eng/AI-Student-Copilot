@@ -179,25 +179,6 @@
       }
     }
 
-    async function startFreeTrial() {
-      if (!isEduEmail(email)) { setError("Use a valid .edu student email address to start the free trial."); return; }
-      if (!(billingConsent && refundConsent && privacyConsent)) {
-        setError("Please read and check all three required billing, refund, and privacy acknowledgments before starting StudentSpark.");
-        return;
-      }
-      setBusy(true); setError("");
-      try {
-        const r = await fetch("/api/free-trial", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: email.trim(), acknowledgmentsAccepted: true }) });
-        const data = await r.json();
-        if (!r.ok || !data.active) throw new Error(data.error || "The free trial could not be started.");
-        // The server has now written the signed access cookie. Reloading from
-        // that cookie is more reliable than trying to swap the legacy app in
-        // place, especially after a mobile browser restores a cached page.
-        window.location.reload();
-      } catch (e) { setError(e.message || "The free trial could not be started."); }
-      finally { setBusy(false); }
-    }
-
     async function signOut() {
       await fetch("/api/sign-out", { method: "POST", credentials: "same-origin" }).catch(() => {});
       setSession(null);
@@ -354,7 +335,6 @@
           <p><b>Honest boundaries.</b> No made-up campus policies, no sexual-content answers, and mental-health questions are handed to real support.</p>
         </div>
       </section>
-      <button className="ss-free" disabled={busy || !isEduEmail(email) || !billingConsent || !refundConsent || !privacyConsent} onClick={startFreeTrial}>Try StudentSpark free for 3 days — no card needed</button>
       {error && <p className="ss-error">{error}</p>}
       <form className="ss-code" onSubmit={redeem}>
         <strong>Have a promo code?</strong>
@@ -401,4 +381,47 @@
   const answerMascotObserver = new MutationObserver(showAnswerMascots);
   answerMascotObserver.observe(document.documentElement, { childList: true, subtree: true });
   showAnswerMascots();
+
+  style.textContent += `.ss-practice-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px}.ss-practice-tools>span{font-size:11px;font-weight:750;color:var(--muted)}.ss-practice-tools button,.ss-practice-modal button{border:1px solid var(--line-2);background:var(--card);color:var(--ink-2);border-radius:999px;padding:6px 11px;font:800 12px inherit;cursor:pointer}.ss-practice-tools button:hover,.ss-practice-modal button.primary{border-color:var(--teal);color:var(--teal)}.ss-practice-modal{position:fixed;z-index:120;inset:0;background:rgba(4,8,15,.72);display:grid;place-items:center;padding:18px}.ss-practice-card{width:min(460px,100%);background:var(--card);border:1px solid var(--line-2);border-radius:18px;padding:20px;box-shadow:0 24px 60px rgba(0,0,0,.55)}.ss-practice-card h3{margin:0 0 5px;font-size:20px}.ss-practice-card p{margin:0 0 15px;font-size:12.5px;color:var(--muted);line-height:1.5}.ss-practice-card label{display:grid;gap:5px;margin:10px 0;font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}.ss-practice-card input{border:1px solid var(--line-2);background:var(--card-2);color:var(--ink);border-radius:9px;padding:10px;font:inherit;text-transform:none;letter-spacing:0}.ss-practice-card input:focus{outline:none;border-color:var(--teal)}.ss-practice-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}.ss-practice-modal button.primary{background:var(--teal);color:#10211e;border-color:var(--teal)}@media(max-width:600px){.ss-practice-tools{margin-top:4px}.ss-practice-tools>span{width:100%}}`;
+
+  // Quiz and Exam only prepare a structured request in the existing composer.
+  // Keeping the original Send action in control avoids interfering with the
+  // legacy chat's React state or silently spending a student's AI allowance.
+  function addPracticeTools() {
+    const composer = document.querySelector('.composer');
+    const textarea = composer && composer.querySelector('textarea');
+    if (!composer || !textarea || document.querySelector('.ss-practice-tools')) return;
+    const tools = document.createElement('div');
+    tools.className = 'ss-practice-tools';
+    tools.innerHTML = '<span>Ready to check your understanding?</span><button type="button" data-mode="quiz">Quiz Me</button><button type="button" data-mode="exam">Exam Me</button>';
+    composer.parentNode.insertBefore(tools, composer);
+    tools.addEventListener('click', event => {
+      const mode = event.target?.dataset?.mode;
+      if (!mode) return;
+      const title = mode === 'exam' ? 'Exam Me' : 'Quiz Me';
+      const difficulty = mode === 'exam' ? 'harder, exam-style' : 'medium difficulty';
+      const modal = document.createElement('div');
+      modal.className = 'ss-practice-modal';
+      modal.innerHTML = `<form class="ss-practice-card"><h3>${title}</h3><p>StudentSpark will ask one ${difficulty} question at a time, then explain the method and the skill to improve after you answer.</p><label>Subject<input name="subject" required placeholder="Example: Biology"></label><label>Topic<input name="topic" required placeholder="Example: Photosynthesis"></label><label>Specific point<input name="point" required placeholder="Example: Light-dependent reactions"></label><div class="ss-practice-actions"><button type="button" data-close="true">Cancel</button><button class="primary" type="submit">Prepare ${title}</button></div></form>`;
+      document.body.appendChild(modal);
+      modal.querySelector('[data-close]').addEventListener('click', () => modal.remove());
+      modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+      modal.querySelector('form').addEventListener('submit', e => {
+        e.preventDefault();
+        const data = new FormData(e.currentTarget);
+        const subject = String(data.get('subject') || '').trim();
+        const topic = String(data.get('topic') || '').trim();
+        const point = String(data.get('point') || '').trim();
+        const request = `Start ${title.toUpperCase()} mode. Subject: ${subject}. Topic: ${topic}. Specific point: ${point}. Ask one ${difficulty} question at a time. Do not reveal the answer until I respond. After each answer, grade it briefly, explain the steps, identify the skill I should improve, give one drill, then ask the next question.`;
+        const valueSetter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+        if (valueSetter) valueSetter.call(textarea, request); else textarea.value = request;
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        textarea.focus();
+        modal.remove();
+      });
+    });
+  }
+  const practiceToolObserver = new MutationObserver(addPracticeTools);
+  practiceToolObserver.observe(document.documentElement, { childList: true, subtree: true });
+  addPracticeTools();
 })();
