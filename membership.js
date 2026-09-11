@@ -11,7 +11,7 @@
       image: "/assets/plans/day-pass.png",
       imageAlt: "StudentSpark Day Pass — 24-hour access",
       detail: "A focused 24-hour pass for guidance, trusted-source suggestions, and a short practice set.",
-      items: ["Focused study guidance for the day", "Trusted academic reading suggestions", "A short practice set when helpful"],
+      items: ["Focused study guidance for the day", "Trusted academic reading suggestions", "Quiz Me and Exam Me practice modes"],
       button: "Get 24-hour access"
     },
     student: {
@@ -22,7 +22,7 @@
       image: "/assets/plans/plus.png",
       imageAlt: "StudentSpark Plus",
       detail: "A focused study coach for planning, understanding assignments, and staying on track.",
-      items: ["Ask, My Week, and Guidelines", "Practice questions and personalized study guidance", "Trusted academic reading suggestions"],
+      items: ["Ask, My Week, and Guidelines", "Quiz Me and Exam Me with skill-building feedback", "Trusted academic reading suggestions"],
       button: "Choose Plus"
     },
     academic_monthly: {
@@ -33,7 +33,7 @@
       image: "/assets/plans/pro.png",
       imageAlt: "StudentSpark Pro",
       detail: "More academic depth for explanations, analogies, practice, and source-aware study support.",
-      items: ["Everything in Plus", "Academic explanations + practice", "Source-aware further reading when available"],
+      items: ["Everything in Plus", "Academic explanations + Quiz Me and Exam Me", "Source-aware further reading when available"],
       button: "Choose Pro"
     },
     academic: {
@@ -44,7 +44,7 @@
       image: "/assets/plans/super.png",
       imageAlt: "StudentSpark Super",
       detail: "The most complete study companion: sources, analogies, practice, My Week, and gentle opt-in study reminders.",
-      items: ["Everything in Plus and Pro", "Easy, medium, and hard practice with concise answers", "Opt-in study reminders and source-aware support"],
+      items: ["Everything in Plus and Pro", "Quiz Me and Exam Me with clear solution steps", "Opt-in study reminders and source-aware support"],
       button: "Choose Super"
     }
   };
