@@ -2,6 +2,8 @@
    Loaded after the legacy sign-in module and before the application mount. */
 (function () {
   const { useEffect, useState } = React;
+  const MASCOTS = [['kind', 'Scholar'], ['focused', 'Focused'], ['funny', 'Study Buddy'], ['bold', 'Bold'], ['calm', 'Calm'], ['spark', 'Spark']];
+  const validMascot = value => MASCOTS.some(([id]) => id === value) ? value : 'kind';
 
   const PLAN_COPY = {
     day: {
@@ -93,7 +95,7 @@
       try { return localStorage.getItem("studentspark-prompt") || "blue"; } catch { return "blue"; }
     });
     const [mascot, setMascot] = useState(() => {
-      try { return localStorage.getItem("studentspark-mascot") || "kind"; } catch { return "kind"; }
+      try { return validMascot(localStorage.getItem("studentspark-mascot")); } catch { return "kind"; }
     });
     const [mascotOpen, setMascotOpen] = useState(false);
     const [styleOpen, setStyleOpen] = useState(false);
@@ -140,7 +142,9 @@
     }, [promptColor]);
     useEffect(() => {
       document.documentElement.dataset.studentsparkMascot = mascot;
+      document.documentElement.style.setProperty('--ss-mascot-image', `url('/assets/mascots/${mascot}.png')`);
       try { localStorage.setItem("studentspark-mascot", mascot); } catch {}
+      showAnswerMascots();
     }, [mascot]);
 
     // A Day Pass can ask questions but cannot use My Week. The original
@@ -255,7 +259,6 @@
     </form>;
 
     const subscriptionPlan = ['plus', 'pro', 'super'].includes(session?.plan);
-    const mascotEligible = subscriptionPlan || session?.plan === 'admin';
     const paidMember = subscriptionPlan && !session?.promo;
     const choiceRow = (label, choices, selected, setSelected) => <div className="ss-theme-row"><span>{label}</span>{choices.map(([value, title]) => <button key={value} type="button" className={selected === value ? "selected" : ""} onClick={() => setSelected(value)}>{title}</button>)}</div>;
     const themePicker = <div className="ss-style-dock" aria-label="Color customization">
@@ -267,15 +270,24 @@
         {choiceRow("My prompts", [['blue', 'Blue'], ['mint', 'Mint'], ['pink', 'Pink'], ['amber', 'Amber']], promptColor, setPromptColor)}
       </div>}
     </div>;
-    const mascotChoices = [['kind', 'Scholar'], ['focused', 'Focused'], ['funny', 'Study Buddy'], ['bold', 'Bold'], ['calm', 'Calm'], ['spark', 'Spark']];
-    const mascotPicker = mascotEligible && <div className="ss-mascot-dock">
-      <button type="button" className="ss-mascot-launch" aria-label="Choose your StudentSpark mascot" aria-expanded={mascotOpen} onClick={() => setMascotOpen(open => !open)}>
+    // Choosing a local image needs no account or AI allowance. Keep the same
+    // picker available on the public page and after any authorized sign-in.
+    const mascotPicker = <div className="ss-mascot-dock" onKeyDown={event => {
+      if (event.key === 'Escape') {
+        setMascotOpen(false);
+        event.currentTarget.querySelector('.ss-mascot-launch').focus();
+      }
+    }}>
+      <button type="button" className="ss-mascot-launch" title="Change mascot" aria-label="Choose your StudentSpark mascot" aria-controls="ss-mascot-panel" aria-expanded={mascotOpen} onClick={() => setMascotOpen(open => !open)}>
         <img src={`/assets/mascots/${mascot}.png`} alt="" />
       </button>
-      <div className={`ss-mascot-panel ${mascotOpen ? "open" : ""}`} aria-hidden={!mascotOpen}>
+      {mascotOpen && <div id="ss-mascot-panel" className="ss-mascot-panel open" role="group" aria-label="Choose your mascot">
         <strong>Choose your mascot</strong><span>Saved only on this device.</span>
-        <div>{mascotChoices.map(([value, title]) => <button key={value} type="button" className={mascot === value ? "selected" : ""} onClick={() => { setMascot(value); setMascotOpen(false); }}><img src={`/assets/mascots/${value}.png`} alt="" />{title}</button>)}</div>
-      </div>
+        <div>{MASCOTS.map(([value, title]) => <button key={value} type="button" aria-pressed={mascot === value} className={mascot === value ? "selected" : ""} onClick={event => {
+          const launch = event.currentTarget.closest('.ss-mascot-dock').querySelector('.ss-mascot-launch');
+          setMascot(value); setMascotOpen(false); launch.focus();
+        }}><img src={`/assets/mascots/${value}.png`} alt="" />{title}</button>)}</div>
+      </div>}
     </div>;
     if (session) return <React.Fragment>
       {children({ name: session.name || session.email, email: session.email, plan: session.plan }, signOut)}
@@ -290,7 +302,8 @@
 
     return <div className="ss-gate">
       <section className="ss-hero">
-        <div className="brand"><span className="brand-mark">SS</span><span className="brand-n">StudentSpark <b>Copilot</b></span></div>
+        <div className="brand">{mascotPicker}<span className="ss-brand-name">StudentSpark <b>Copilot</b></span></div>
+        <p className="ss-mascot-hint">Click the mascot to make StudentSpark yours.</p>
         <p className="ss-kicker">Study help that makes difficult ideas click.</p>
         <h1>Learn with clarity. <span>Start with a plan.</span></h1>
         <p className="ss-lede">Your calm study partner for difficult classes. StudentSpark makes concepts click with guidance, memorable analogies, and scholarly reading suggestions when your plan includes Academic support.</p>
@@ -361,18 +374,24 @@
   style.textContent += `.top .brand-mark,.a-mark{font-size:0;background:#172948 url('/assets/mascots/kind.png') center/cover no-repeat;overflow:hidden}.top .brand-mark:after,.a-mark:after{content:''}:root[data-studentspark-mascot="focused"] .top .brand-mark,:root[data-studentspark-mascot="focused"] .a-mark{background-image:url('/assets/mascots/focused.png')}:root[data-studentspark-mascot="funny"] .top .brand-mark,:root[data-studentspark-mascot="funny"] .a-mark{background-image:url('/assets/mascots/funny.png')}:root[data-studentspark-mascot="bold"] .top .brand-mark,:root[data-studentspark-mascot="bold"] .a-mark{background-image:url('/assets/mascots/bold.png')}:root[data-studentspark-mascot="calm"] .top .brand-mark,:root[data-studentspark-mascot="calm"] .a-mark{background-image:url('/assets/mascots/calm.png')}:root[data-studentspark-mascot="spark"] .top .brand-mark,:root[data-studentspark-mascot="spark"] .a-mark{background-image:url('/assets/mascots/spark.png')}.ss-style-dock{position:fixed;z-index:91;left:18px;bottom:18px}.ss-style-launch,.ss-legal-dock>button{border:1px solid var(--line-2);background:var(--card);color:var(--ink-2);border-radius:100px;padding:9px 14px;font:800 12px inherit;box-shadow:0 6px 20px rgba(0,0,0,.22)}.ss-style-launch:hover,.ss-legal-dock>button:hover{border-color:var(--flame);color:var(--flame-deep)}.ss-style-dock .ss-theme-picker{position:absolute;left:0;bottom:46px}.ss-legal-dock{position:fixed;z-index:90;right:18px;bottom:106px}.ss-legal-dock>div{position:absolute;right:0;bottom:42px;display:grid;gap:5px;min-width:180px;padding:10px;border:1px solid var(--line-2);border-radius:12px;background:var(--card);box-shadow:0 6px 20px rgba(0,0,0,.22)}.ss-legal-dock a{font-size:12px;font-weight:750;text-decoration:none;color:var(--ink-2)}.ss-legal-dock a:hover{color:var(--flame-deep)}@media(max-width:800px){.ss-style-dock{left:10px;bottom:10px}.ss-style-dock .ss-theme-picker{left:0;bottom:44px}.ss-legal-dock{right:10px;bottom:101px}.ss-theme-picker{width:min(440px,calc(100vw - 20px))}}`;
   style.textContent += `.ss-mascot-dock{position:fixed;z-index:94;left:22px;top:12px}.ss-mascot-launch{width:35px;height:35px;border:1px solid var(--line-2);border-radius:10px;padding:0;background:var(--card);overflow:hidden;cursor:pointer;box-shadow:0 5px 18px rgba(0,0,0,.25)}.ss-mascot-launch img{width:100%;height:100%;display:block;object-fit:cover}.ss-mascot-panel{position:absolute;left:44px;top:0;width:262px;padding:12px;border:1px solid var(--line-2);border-radius:14px;background:var(--card);box-shadow:0 14px 38px rgba(0,0,0,.42);opacity:0;transform:translateX(-12px);pointer-events:none;transition:opacity .18s ease,transform .18s ease}.ss-mascot-panel.open{opacity:1;transform:translateX(0);pointer-events:auto}.ss-mascot-panel strong{display:block;font-size:12px;color:var(--ink)}.ss-mascot-panel>span{display:block;font-size:10.5px;color:var(--muted);margin:2px 0 9px}.ss-mascot-panel>div{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.ss-mascot-panel button{display:grid;justify-items:center;gap:3px;border:1px solid var(--line-2);border-radius:9px;background:var(--card-2);color:var(--ink-2);padding:5px 3px;font:700 10px inherit;cursor:pointer}.ss-mascot-panel button.selected{border-color:var(--teal);color:var(--teal);box-shadow:0 0 0 1px var(--teal) inset}.ss-mascot-panel img{width:31px;height:31px;border-radius:8px;object-fit:cover}.ss-answer-mascot{display:flex;justify-content:flex-end;margin:10px 0 2px;pointer-events:none}.ss-answer-mascot img{width:34px;height:34px;border-radius:10px;object-fit:cover;border:1px solid var(--line-2);background:#172948;box-shadow:0 5px 16px rgba(0,0,0,.2)}@media(max-width:800px){.ss-mascot-dock{left:11px;top:11px}.ss-mascot-panel{left:42px;width:245px}}`;
 
+  style.textContent += `:root .top .brand-mark,:root .a-mark,.ss-gate .brand-mark{background-image:var(--ss-mascot-image,url('/assets/mascots/kind.png'))}.ss-hero .brand{margin-bottom:6px}.ss-brand-name{font-size:16px}.ss-mascot-hint{font-size:12px;color:var(--muted);margin:0 0 24px}.ss-gate .ss-mascot-dock{position:relative;left:auto;top:auto;display:flex}.ss-gate .ss-mascot-panel{left:0;top:46px;text-align:left}.ss-mascot-launch:focus-visible,.ss-mascot-panel button:focus-visible{outline:2px solid var(--teal);outline-offset:3px}@media(max-width:420px){.ss-gate .ss-mascot-panel{left:-12px;width:245px}}`;
+
   // The legacy chat is bundled separately. Add a presentation-only footer to
   // each finished StudentSpark answer without touching its form controls,
   // request handling, authentication, or promotion logic.
   function showAnswerMascots() {
+    const choice = validMascot(document.documentElement.dataset.studentsparkMascot);
+    const src = `/assets/mascots/${choice}.png`;
     document.querySelectorAll('.a-row:not(.err) .answer').forEach(answer => {
-      if (answer.querySelector('.ss-answer-mascot')) return;
+      const existing = answer.querySelector('.ss-answer-mascot img');
+      if (existing) {
+        if (existing.getAttribute('src') !== src) existing.setAttribute('src', src);
+        return;
+      }
       const icon = document.createElement('div');
       icon.className = 'ss-answer-mascot';
       const image = document.createElement('img');
-      let choice = 'kind';
-      try { choice = localStorage.getItem('studentspark-mascot') || 'kind'; } catch {}
-      image.src = `/assets/mascots/${choice}.png`;
+      image.src = src;
       image.alt = 'Your selected StudentSpark mascot';
       icon.appendChild(image);
       answer.appendChild(icon);
